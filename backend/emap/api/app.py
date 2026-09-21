@@ -97,6 +97,9 @@ def create_app(
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        # Local development: any localhost / 127.0.0.1 port (Vite moves ports when one is taken;
+        # opening the app via 127.0.0.1 instead of localhost is a different origin).
+        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
         allow_methods=["GET"],
         allow_headers=["*"],
     )

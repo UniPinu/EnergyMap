@@ -78,3 +78,19 @@ def test_samples_rejects_inverted_window(client: TestClient):
         "end": T0.isoformat(),
     }
     assert client.get("/api/samples", params=params).status_code == 422
+
+
+@pytest.mark.parametrize(
+    "origin,allowed",
+    [
+        ("http://localhost:5173", True),
+        ("http://localhost:5174", True),
+        ("http://127.0.0.1:5179", True),
+        ("http://localhost", True),
+        ("https://evil.example.com", False),
+    ],
+)
+def test_cors_allows_any_local_dev_origin(client: TestClient, origin: str, allowed: bool):
+    r = client.get("/health", headers={"Origin": origin})
+    assert r.status_code == 200
+    assert (r.headers.get("access-control-allow-origin") == origin) is allowed
