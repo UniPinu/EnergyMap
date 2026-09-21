@@ -14,7 +14,7 @@ Authoritative documents (read in this order):
 | Phase | Milestone | State |
 |---|---|---|
 | 0 | Foundations — repo, stack, canonical `Sample` schema, projection helper | ✅ built |
-| 1 | Skeleton topology (PyPSA-Eur → React Flow) | ⏳ |
+| 1 | Skeleton topology (PyPSA-Eur → React Flow) | ✅ built |
 | 2 | DK live data + sidebar (Energinet) | ⏳ |
 | 3 | Balance, residual & LOD | ⏳ |
 | 4 | Neighbours + strain + calendar (ENTSO-E) | ⏳ |
@@ -49,6 +49,8 @@ python -m venv .venv
 - `http://127.0.0.1:8000/health` — status, applied migrations, UTC server time
 - `http://127.0.0.1:8000/docs` — OpenAPI UI
 - `http://127.0.0.1:8000/api/samples?entity_id=DK1&quantity=price` — canonical rows (empty until Phase 2)
+- `http://127.0.0.1:8000/api/topology` — the static network (validated at startup from
+  `topology/artifacts/topology.json`; the app refuses to boot on a broken artifact)
 
 Run **one** uvicorn worker (the default): DuckDB is single-writer and the scheduled ingesters
 (Phase 2+) run inside the API process.
@@ -65,6 +67,13 @@ Open the URL Vite prints (default `http://localhost:5173`). If Vite picks anothe
 to `EMAP_CORS_ORIGINS` in `.env` and restart the backend. The footer shows the backend status
 read from `/health`.
 
+What you see (Phase 1): the Northern-Europe network at cluster level **Π₀** (19 bidding-zone
+super-nodes). Switch levels with the header buttons: **Π₁** (k-means bus clusters inside
+DK1/DK2, neighbours unchanged) and **Π₂** (every DK bus, plant, load and storage unit; neighbour
+zones as hub + aggregate satellites). Nodes are immovable and sit at the Web-Mercator projection
+of their coordinates; click a node to select it and light up its corridors. Zoom-driven level
+selection and the render budget arrive in Phase 3 — at Π₂ zoom into Denmark to read the cards.
+
 ### 3. Verify
 
 ```bash
@@ -74,6 +83,23 @@ cd frontend && npm test && npm run typecheck && npm run check:api
 
 `check:api` fails if `frontend/src/lib/api-types.d.ts` is out of date with the backend's
 OpenAPI document — regenerate with `npm run gen:api` whenever the API changes.
+
+Runtime smoke test (needs backend + frontend running and Google Chrome installed; drives it via
+`playwright-core`, no browser download):
+
+```bash
+cd frontend && npm run smoke -- http://localhost:5173      # screenshots in frontend/.smoke/
+```
+
+It reports mounted nodes/edges per level, verifies the four node types, click-selection with
+corridor highlighting, immovability, pan/zoom timing, viewport culling, and that the browser
+talks only to our own hosts.
+
+Topology builder tests (only if you rebuild the artifact — see [topology/README.md](topology/README.md)):
+
+```bash
+cd topology && .venv/Scripts/python -m pytest
+```
 
 ## ENTSO-E token (do this on day 1 — ~3 working-day lead time)
 
@@ -89,7 +115,8 @@ obtain it:
 
 ```
 docs/                 MVP.md, CONTEXT.md, IMPLEMENTATION_PLAN.md
-topology/             A — PyPSA-Eur export scripts → topology artifacts (Phase 1)
+topology/             A — PyPSA-Eur export → artifacts/topology.json (committed; see its README)
+  emap_topology/      sources (pinned URLs+sha256), io, zones, graph, cluster, build
 backend/              B — FastAPI app
   emap/schema/        canonical Node / Edge / Sample (pydantic)  ← the boundary
   emap/store/         DuckDB store + migrations/NNNN_*.sql
@@ -99,8 +126,10 @@ backend/              B — FastAPI app
   emap/api/           routes
   scripts/            migrate.py, export_openapi.py
 frontend/             C — React 19 + Vite + @xyflow/react + shadcn/ui + Tailwind v4
-  src/lib/            projection.ts (shared Web-Mercator), api.ts, api-types.d.ts (generated)
-  scripts/gen-api.mjs OpenAPI → TypeScript
+  src/lib/            projection.ts (shared Web-Mercator), api.ts, api-types.d.ts (generated), topology.ts
+  src/canvas/         GridCanvas (React Flow), nodes/ (4 typed + cluster), edges/ (corridor)
+  src/store/          ui store (level, selection)
+  scripts/            gen-api.mjs (OpenAPI → TypeScript), smoke.mjs (runtime checks)
 ```
 
 ## Decisions
@@ -116,3 +145,9 @@ frontend/             C — React 19 + Vite + @xyflow/react + shadcn/ui + Tailwi
   finite value.
 - **Shared contract** = backend OpenAPI → generated TS types; the frontend has no hand-written
   API shapes.
+- **Topology source** = PyPSA-Eur's own pinned inputs (OSM prebuilt network 0.7, powerplantmatching
+  0.8.1, entsoe-py zone polygons) processed by `topology/`, with Π₁ from PyPSA's native k-means
+  busmap — instead of running the Snakemake workflow (no conda/Docker here). Ids are OSM/ppm ids,
+  so the artifact is reproducible and rebuildable.
+- **One flow world for all levels** (36k px, ≈1° lon ≈ 1000 px) with per-level card scale, so the
+  zoom-driven LOD (Phase 3) switches levels without moving the viewport.
