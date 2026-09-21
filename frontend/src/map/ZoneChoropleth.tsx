@@ -11,9 +11,10 @@ import './map.css'
 
 /**
  * The geographic layer (MVP.md §8, CONTEXT.md §1.3/§1.5): a shadcn-maps SVG choropleth of the
- * bidding zones, tinted by the reconciliation residual r̂, region-click → sidebar. It is mounted
- * inside React Flow's viewport in world coordinates, so it is only ever drawn at Π₀ yet stays
- * spatially continuous with the node layers when the zoom crosses into Π₁.
+ * bidding zones, tinted by the reconciliation residual r̂ at Π₀, region-click → sidebar. It is
+ * mounted inside React Flow's viewport in world coordinates (one projection with the nodes);
+ * at finer levels the tint goes and the zone outlines remain as a faint underlay, so geography
+ * stays suggested without a basemap (MVP.md §2.2).
  */
 export function ZoneChoropleth() {
   const level = useUi((s) => s.level)

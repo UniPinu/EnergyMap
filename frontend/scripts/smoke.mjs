@@ -68,7 +68,14 @@ for (const level of [0, 1, 2]) {
   console.log(`zoom→Π${level}: zoom=${z.toFixed(3)} mounted nodes=${c.nodes} edges=${c.edges} byType=${JSON.stringify(c.byType)} map=${m.visible} lod=${await lodText()}`)
   check(c.nodes > 0 && c.edges > 0, `level ${level} renders nodes and edges`)
   check(c.nodes <= 400, `render budget holds at level ${level} (${c.nodes} ≤ 400)`)
-  check(m.visible === (level === 0 ? 'true' : 'false'), `choropleth ${level === 0 ? 'shown' : 'hidden'} at Π${level}`)
+  const outline = await page.evaluate(() => {
+    const p = document.querySelector('.emap-map path')
+    return p ? { fill: getComputedStyle(p).fill, stroke: getComputedStyle(p).strokeWidth } : null
+  })
+  check(
+    m.visible === (level === 0 ? 'true' : 'false') && (level === 0 ? outline?.fill !== 'rgba(0, 0, 0, 0)' : outline?.fill === 'rgba(0, 0, 0, 0)'),
+    `choropleth ${level === 0 ? 'tinted' : 'outline-only underlay'} at Π${level} (fill ${outline?.fill})`,
+  )
   check((level === 0) === (c.byType.cluster === 19) && (level === 2) === (c.byType.cluster === 0), `zoom selected Π${level}`)
   if (level === 2) {
     check(

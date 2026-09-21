@@ -80,7 +80,8 @@ to `EMAP_CORS_ORIGINS` in `.env` and restart the backend. The footer shows the b
 read from `/health`.
 
 What you see (Phase 3): the open view is the **zonal summary** — a shadcn-maps choropleth of
-the bidding zones tinted by the reconciliation residual r̂, with one super-node card per zone
+the bidding zones tinted by the reconciliation residual r̂ (the tint is Π₀-only; the zone
+outlines stay as a faint underlay at every zoom), with one super-node card per zone
 (DK1/DK2 live, neighbours "—" until Phase 4). **Zoom drives the level** (MVP §4.2): Π₀ zones →
 Π₁ k-means bus clusters inside DK → Π₂ every DK bus, plant, load, distributed-generation and
 storage node, always within the 400-node render budget (the toolbar shows mounted/budget; the

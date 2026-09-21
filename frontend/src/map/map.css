@@ -8,9 +8,13 @@
   z-index: -1;
   transition: opacity 240ms var(--default-timing-function);
 }
+/* finer levels: the tint goes, the zone outlines stay as a faint underlay (geography suggested) */
 .emap-map[data-visible='false'] {
-  opacity: 0;
   pointer-events: none;
+}
+.emap-map[data-visible='false'] path {
+  fill: transparent;
+  stroke: var(--overlay-10);
 }
 .emap-map svg {
   width: 100%;
