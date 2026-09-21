@@ -111,3 +111,29 @@ def test_provenance_pinned(doc):
     assert src["pypsa-eur osm-prebuilt buses"]["version"] == "0.7"
     assert src["powerplantmatching powerplants.csv"]["version"] == "0.8.1"
     assert all(len(s["sha256"]) == 64 for s in src.values())
+
+
+def test_distribution_keys_sum_to_one_per_zone(doc):
+    """Phase 2 bus->zone rule: demand keys on load nodes partition each zone's load."""
+    by_zone = defaultdict(float)
+    dg = defaultdict(float)
+    for n in doc["nodes"]:
+        if n["kind"] == "consumption":
+            assert n.get("dist_key") is not None, n["id"]
+            by_zone[n["zone"]] += n["dist_key"]
+        if n["id"].startswith("dg:"):
+            dg[n["zone"]] += n["dist_key"]
+    for zone, total in by_zone.items():
+        assert total == pytest.approx(1.0, abs=1e-4), zone
+    assert dg["DK1"] == pytest.approx(1.0, abs=1e-4) and dg["DK2"] == pytest.approx(1.0, abs=1e-4)
+
+
+def test_every_dk_bus_has_load_and_dg_satellites(doc):
+    ids = {n["id"] for n in doc["nodes"]}
+    for n in doc["nodes"]:
+        if n["kind"] == "grid" and n["zone"] in ("DK1", "DK2"):
+            bus = n["id"].removeprefix("bus:")
+            assert f"load:{bus}" in ids and f"dg:{bus}" in ids
+    # Copenhagen-area buses carry the largest DK2 keys; the biggest single key is < 30 %
+    keys = [n["dist_key"] for n in doc["nodes"] if n["kind"] == "consumption" and n["zone"] == "DK2"]
+    assert 0.1 < max(keys) < 0.3

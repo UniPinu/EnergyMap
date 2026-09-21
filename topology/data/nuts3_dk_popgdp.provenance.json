@@ -1,0 +1,11 @@
+{
+ "population": {
+  "url": "https://data.pypsa.org/workflows/eur/nuts3_population/13-03-2025/nama_10r_3popgdp.tsv.gz",
+  "sha256": "10642e5d37bca4502d0574a49a4a652ad98599c2c4b868d8330fccc4804a21b3",
+  "version": "13-03-2025"
+ },
+ "gdp": {
+  "url": "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/nama_10r_3gdp?format=TSV&compressed=true",
+  "sha256": "3cccb6e2f2f6695812520c7b2192c5fa5fed20264f393d79644be51af2a300cb"
+ }
+}

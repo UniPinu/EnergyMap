@@ -1,10 +1,14 @@
 """Finest-level graph (Π_L): DK buses / plants / loads / storage at entity granularity,
 neighbour zones as hub + aggregate source / load / storage satellites (MVP.md §2.3).
 
-Node ids:  bus:<osm bus>  plant:<ppm id>  load:<osm bus>  store:<ppm id>
+Node ids:  bus:<osm bus>  plant:<ppm id>  load:<osm bus>  dg:<osm bus>  store:<ppm id>
            hub:<zone>  zgen:<zone>  zload:<zone>  zstore:<zone>
-Edge ids:  line:<id>  xfmr:<id>  link:<id>  conn:<ppm id>  feed:<osm bus>
+Edge ids:  line:<id>  xfmr:<id>  link:<id>  conn:<ppm id>  feed:<osm bus>  dg-conn:<osm bus>
            ic:<a>--<b>  (bundled cross-zone corridor, members listed in `edge_members`)
+
+Distribution rule (decided in Phase 2): `dist_key` on load:/dg: nodes is the bus's share of its
+zone (population 60 % + GDP 40 % of the bus's Voronoi cell, see loadkey.py); zload:/zgen: carry
+the whole zone (1.0). Plant shares are nameplate-based and computed at runtime from capacity.
 """
 
 from __future__ import annotations
@@ -17,6 +21,8 @@ import pandas as pd
 from shapely.geometry.base import BaseGeometry
 
 from .config import PARAMS, STORAGE_FUELTYPES, STORAGE_TECHS, ZONES, BuildParams
+from .loadkey import load_keys
+from .nuts import read_nuts3_dk
 from .zones import assign_zones, zone_anchor
 
 FUEL_MAP = {  # powerplantmatching Fueltype/Technology -> canonical `fuel`
@@ -74,6 +80,7 @@ class Graph:
     edge_members: dict[str, list[str]] = field(default_factory=dict)  # bundled id -> osm ids
     bus_of: dict[str, str] = field(default_factory=dict)  # node id -> grid node it hangs off
     zone_anchor: dict[str, tuple[float, float]] = field(default_factory=dict)
+    load_key_detail: dict[str, dict[str, float]] = field(default_factory=dict)  # bus -> pop/gdp
 
     def add_node(self, **n) -> None:
         self.nodes.append(n)
@@ -149,20 +156,44 @@ def build_graph(
     detail_zones = {z.id for z in ZONES.values() if z.detail}
     dlon, dlat = params.satellite_offset_deg
 
-    # ---- DK grid buses (AC only) + one consumption node per bus ---------------------------
+    # ---- DK grid buses (AC only) + one consumption and one distributed-gen node per bus ----
     dk_ac = buses[(buses.zone.isin(detail_zones)) & (~buses.dc)]
+    nuts_gj, nuts_stats = read_nuts3_dk()
+    keys, key_detail = load_keys(dk_ac[["x", "y", "zone"]], polygons, nuts_gj, nuts_stats)
+    g.load_key_detail = key_detail
     for bid, r in dk_ac.iterrows():
         raw = next((names[t] for t in str(r.tags).split(";") if t in names), None)
-        nm = (
-            clean_name(raw)
-            if raw
-            else f"Substation {int(r.voltage)} kV #{bid.split('/')[-1].split(':')[0][-6:]}"
-        )
+        short = bid.split("/")[-1].split(":")[0][-6:]
+        nm = clean_name(raw) if raw else f"Substation {int(r.voltage)} kV #{short}"
         _node(g, f"bus:{bid}", "grid", nm, r.zone, r.y, r.x, voltage_kv=int(r.voltage))
         g.bus_of[f"bus:{bid}"] = f"bus:{bid}"
-        _node(g, f"load:{bid}", "consumption", f"Load @ {nm}", r.zone, r.y + dlat, r.x + dlon)
+        k = round(keys[bid], 6)
+        _node(
+            g,
+            f"load:{bid}",
+            "consumption",
+            f"Load @ {nm}",
+            r.zone,
+            r.y + dlat,
+            r.x + dlon,
+            dist_key=k,
+        )
         g.bus_of[f"load:{bid}"] = f"bus:{bid}"
         g.add_edge(f"feed:{bid}", f"bus:{bid}", f"load:{bid}", "ac_line", None)
+        # small-scale / unmodelled generation (rooftop PV, CHP < 20 MW) co-located with demand
+        _node(
+            g,
+            f"dg:{bid}",
+            "source",
+            f"Distributed gen @ {nm}",
+            r.zone,
+            r.y + dlat,
+            r.x - dlon,
+            fuel="distributed",
+            dist_key=k,
+        )
+        g.bus_of[f"dg:{bid}"] = f"bus:{bid}"
+        g.add_edge(f"dg-conn:{bid}", f"dg:{bid}", f"bus:{bid}", "ac_line", None)
 
     # ---- neighbour zones: hub node (interconnectors land here) ------------------------------
     for z in ZONES.values():
@@ -230,9 +261,17 @@ def build_graph(
             lon - 3 * dlon,
             capacity_mw=gcap,
             fuel="mixed",
+            dist_key=1.0,
         )
         _node(
-            g, f"zload:{z.id}", "consumption", f"{z.id} load", z.id, lat + 3 * dlat, lon + 3 * dlon
+            g,
+            f"zload:{z.id}",
+            "consumption",
+            f"{z.id} load",
+            z.id,
+            lat + 3 * dlat,
+            lon + 3 * dlon,
+            dist_key=1.0,
         )
         g.bus_of[f"zgen:{z.id}"] = g.bus_of[f"zload:{z.id}"] = f"hub:{z.id}"
         g.add_edge(f"zgen-conn:{z.id}", f"zgen:{z.id}", f"hub:{z.id}", "ac_line", gcap)

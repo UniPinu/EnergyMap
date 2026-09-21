@@ -27,8 +27,8 @@ EntityKind = Literal["node", "edge"]
 
 # §5.2 lists 'p_gen'|'demand'|'flow'|'soc'|'price'|'strain'|'residual'|...
 # The trailing '...' is realized by extending this Literal in later phases.
-Quantity = Literal["p_gen", "demand", "flow", "soc", "price", "strain", "residual"]
-Unit = Literal["MW", "MWh", "EUR/MWh", "ratio"]
+Quantity = Literal["p_gen", "demand", "flow", "soc", "price", "strain", "residual", "co2_intensity"]
+Unit = Literal["MW", "MWh", "EUR/MWh", "ratio", "tCO2/MWh"]
 Source = Literal["energinet", "entsoe", "pypsa", "derived"]
 Resolution = Literal["PT5M", "PT15M", "PT60M"]
 Quality = Literal["measured", "interpolated", "estimated", "missing"]
@@ -59,6 +59,12 @@ class Node(BaseModel):
     # Optional extensions of MVP.md §5.1 (strict superset):
     energy_mwh: float | None = Field(default=None, ge=0, description="storage E_max (MWh)")
     voltage_kv: int | None = Field(default=None, ge=0, description="grid bus nominal voltage")
+    dist_key: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="share of the zone aggregate this node receives (bus->zone rule, Phase 2)",
+    )
 
 
 class Edge(BaseModel):

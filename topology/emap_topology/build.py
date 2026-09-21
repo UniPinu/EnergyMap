@@ -42,6 +42,12 @@ def build() -> dict:
         "meta": {
             "builder": f"emap_topology {__version__}",
             "built_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+            "distribution_rule": {
+                "demand": "dist_key per load: node = 0.6*pop + 0.4*gdp share of the bus's "
+                "Voronoi cell (Eurostat NUTS3 2023/2024, GISCO NUTS 2021); sums to 1 per zone",
+                "generation": "per class: modelled plants get nameplate share capped at u<=1; "
+                "remainder to dg: nodes by dist_key (applied at runtime by the backend)",
+            },
             "params": {
                 "plant_min_mw": PARAMS.plant_min_mw,
                 "storage_min_mw": PARAMS.storage_min_mw,
@@ -67,6 +73,7 @@ def build() -> dict:
         "nodes": nodes,
         "edges": edges,
         "edge_members": g.edge_members,
+        "load_key_detail": g.load_key_detail,
         "views": {str(k): v for k, v in views.items()},
     }
 
