@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react'
 import { API_BASE, api, type Health } from '@/lib/api'
+import { useTopology } from '@/lib/topology'
+import { useUi } from '@/store/ui'
+import { GridCanvas } from '@/canvas/GridCanvas'
+import { cn } from '@/lib/utils'
 
 type Status = { kind: 'loading' } | { kind: 'ok'; health: Health } | { kind: 'error'; message: string }
 
 /**
- * Phase 0 shell. The balance-graph canvas (Phase 1), sidebar (Phase 2) and
- * LOD/choropleth layers (Phase 3) mount into this frame. What it proves now:
- * the frontend builds, the theme tokens resolve, and it can read service B.
+ * App frame. Phase 1: the balance-graph canvas renders the static topology at a chosen cluster
+ * level. Sidebar (Phase 2), zoom-driven LOD + choropleth (Phase 3) mount into this frame.
  */
 export default function App() {
   const [status, setStatus] = useState<Status>({ kind: 'loading' })
+  const topo = useTopology()
 
   useEffect(() => {
     let cancelled = false
@@ -30,22 +34,72 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
-      <header className="flex items-center justify-between border-b px-4 py-2">
+      <header className="flex items-center justify-between gap-4 border-b px-4 py-2">
         <div className="flex items-baseline gap-3">
           <h1 className="text-sm font-semibold tracking-tight">Northern European Electricity Balance Terminal</h1>
-          <span className="text-xs text-muted-foreground">phase 0 — foundations</span>
+          <span className="text-xs text-muted-foreground">phase 1 — skeleton topology</span>
         </div>
-        <NodeTypeLegend />
+        <div className="flex items-center gap-4">
+          {topo.state === 'ready' && <LevelSwitch levels={topo.topology.meta.levels} />}
+          <NodeTypeLegend />
+        </div>
       </header>
 
-      <main className="relative flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Balance-graph canvas mounts here in Phase 1.</p>
+      <main className="relative min-h-0 flex-1">
+        {topo.state === 'loading' && <Center>loading topology…</Center>}
+        {topo.state === 'error' && <Center className="text-destructive">topology unavailable: {topo.message}</Center>}
+        {topo.state === 'ready' && <GridCanvas topology={topo.topology} />}
+        {topo.state === 'ready' && <SelectionReadout />}
       </main>
 
       <footer className="flex items-center gap-4 border-t px-4 py-1.5 font-mono text-[11px] text-muted-foreground">
         <span>api {API_BASE}</span>
         <BackendStatus status={status} />
+        {topo.state === 'ready' && (
+          <span className="ml-auto">
+            topology {topo.topology.nodes.length} nodes · {topo.topology.edges.length} edges · built {topo.topology.meta.built_at_utc}
+          </span>
+        )}
       </footer>
+    </div>
+  )
+}
+
+function Center({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn('flex h-full items-center justify-center text-sm text-muted-foreground', className)}>{children}</div>
+}
+
+function LevelSwitch({ levels }: { levels: Array<{ level: number; name: string; description: string }> }) {
+  const level = useUi((s) => s.level)
+  const setLevel = useUi((s) => s.setLevel)
+  return (
+    <div className="flex items-center gap-1 text-xs" role="radiogroup" aria-label="cluster level">
+      <span className="mr-1 text-muted-foreground">level</span>
+      {levels.map((l) => (
+        <button
+          key={l.level}
+          role="radio"
+          aria-checked={level === l.level}
+          title={l.description}
+          onClick={() => setLevel(l.level)}
+          className={cn(
+            'rounded border px-2 py-0.5 font-mono',
+            level === l.level ? 'border-primary bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          Π{l.level} {l.name}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function SelectionReadout() {
+  const selectedId = useUi((s) => s.selectedId)
+  if (!selectedId) return null
+  return (
+    <div className="pointer-events-none absolute left-3 top-3 rounded border bg-card/90 px-2 py-1 font-mono text-[11px]">
+      selected <span className="text-primary">{selectedId}</span>
     </div>
   )
 }
@@ -75,15 +129,12 @@ function BackendStatus({ status }: { status: Status }) {
       return <span>backend: connecting…</span>
     case 'error':
       return <span className="text-destructive">backend: unreachable ({status.message})</span>
-    case 'ok': {
-      const m = status.health.db.migrations
+    case 'ok':
       return (
         <span>
-          <span className="text-node-source">backend: {status.health.status}</span> · v{status.health.version} ·
-          db migrations: {m.map((x) => `${String(x.version).padStart(4, '0')}_${x.name}`).join(', ') || 'none'} ·
-          server time: {status.health.time_utc}
+          <span className="text-node-source">backend: {status.health.status}</span> · v{status.health.version} · server time{' '}
+          {status.health.time_utc}
         </span>
       )
-    }
   }
 }

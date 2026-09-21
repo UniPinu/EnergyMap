@@ -22,6 +22,27 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/topology": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Topology
+         * @description The static network: canonical nodes/edges at the finest level plus the precomputed
+         *     cluster views for coarser levels (service A artifact, validated at startup).
+         */
+        get: operations["get_topology_api_topology_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -43,12 +64,78 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        /** BundledEdge */
+        BundledEdge: {
+            /** From */
+            from: string;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ac_line" | "hvdc_link" | "interconnector";
+            /** Length Km */
+            length_km: number | null;
+            /** Members */
+            members: string[];
+            /** Rating Mw */
+            rating_mw: number | null;
+            /** To */
+            to: string;
+        };
+        /** ClusterNode */
+        ClusterNode: {
+            /** Capacity Mw */
+            capacity_mw: {
+                [key: string]: number;
+            };
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Id */
+            id: string;
+            /** Lat */
+            lat: number;
+            /** Level */
+            level: number;
+            /** Lon */
+            lon: number;
+            /** Members */
+            members: string[];
+            /** Name */
+            name: string;
+            /** Zone */
+            zone: string;
+        };
         /** DbHealth */
         DbHealth: {
             /** Migrations */
             migrations: components["schemas"]["MigrationInfo"][];
             /** Path */
             path: string;
+        };
+        /** Edge */
+        Edge: {
+            /** From */
+            from: string;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ac_line" | "hvdc_link" | "interconnector";
+            /** Length Km */
+            length_km?: number | null;
+            /**
+             * Rating Mw
+             * @description thermal limit / NTC; null = unrated virtual connection (bus->load)
+             */
+            rating_mw: number | null;
+            /** To */
+            to: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -68,6 +155,22 @@ export type components = {
             /** Version */
             version: string;
         };
+        /** LevelInfo */
+        LevelInfo: {
+            /** Description */
+            description: string;
+            /** Level */
+            level: number;
+            /** Name */
+            name: string;
+        };
+        /** LevelView */
+        LevelView: {
+            /** Edges */
+            edges: components["schemas"]["BundledEdge"][];
+            /** Nodes */
+            nodes: components["schemas"]["ClusterNode"][];
+        };
         /** MigrationInfo */
         MigrationInfo: {
             /**
@@ -79,6 +182,59 @@ export type components = {
             name: string;
             /** Version */
             version: number;
+        };
+        /** Node */
+        Node: {
+            /**
+             * Capacity Mw
+             * @description nameplate power rating (MW); storage: P_max
+             */
+            capacity_mw?: number | null;
+            /**
+             * Cluster
+             * @description level -> cluster_id; membership in Π_0..Π_L
+             */
+            cluster?: {
+                [key: string]: string;
+            };
+            /**
+             * Co2 Intensity
+             * @description tCO2/MWh
+             */
+            co2_intensity?: number | null;
+            /**
+             * Energy Mwh
+             * @description storage E_max (MWh)
+             */
+            energy_mwh?: number | null;
+            /** Fuel */
+            fuel?: string | null;
+            /**
+             * Id
+             * @description stable canonical id
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "source" | "grid" | "consumption" | "storage";
+            /** Lat */
+            lat: number;
+            /** Lon */
+            lon: number;
+            /** Name */
+            name: string;
+            /**
+             * Voltage Kv
+             * @description grid bus nominal voltage
+             */
+            voltage_kv?: number | null;
+            /**
+             * Zone
+             * @description bidding zone, e.g. 'DK1'
+             */
+            zone: string;
         };
         /**
          * Sample
@@ -130,6 +286,43 @@ export type components = {
             /** Value */
             value: number | null;
         };
+        /** Topology */
+        Topology: {
+            /** Edge Members */
+            edge_members: {
+                [key: string]: string[];
+            };
+            /** Edges */
+            edges: components["schemas"]["Edge"][];
+            meta: components["schemas"]["TopologyMeta"];
+            /** Nodes */
+            nodes: components["schemas"]["Node"][];
+            /** Views */
+            views: {
+                [key: string]: components["schemas"]["LevelView"];
+            };
+            /** Zones */
+            zones: components["schemas"]["ZoneInfo"][];
+        };
+        /** TopologyMeta */
+        TopologyMeta: {
+            /** Builder */
+            builder: string;
+            /** Built At Utc */
+            built_at_utc: string;
+            /** Finest Level */
+            finest_level: number;
+            /** Levels */
+            levels: components["schemas"]["LevelInfo"][];
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Sources */
+            sources: {
+                [key: string]: string;
+            }[];
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -142,6 +335,21 @@ export type components = {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** ZoneInfo */
+        ZoneInfo: {
+            /** Country */
+            country: string;
+            /** Detail */
+            detail: boolean;
+            /** Id */
+            id: string;
+            /** Lat */
+            lat: number;
+            /** Lon */
+            lon: number;
+            /** Name */
+            name: string;
         };
     };
     responses: never;
@@ -183,6 +391,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_topology_api_topology_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Topology"];
                 };
             };
         };
