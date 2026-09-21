@@ -23,6 +23,8 @@ class Settings(BaseSettings):
 
     # Store
     emap_db_path: Path = Field(default=Path("backend/data/energymap.duckdb"))
+    # Static topology artifact (service A output, committed)
+    emap_topology_path: Path = Field(default=Path("topology/artifacts/topology.json"))
 
     # API
     emap_host: str = "127.0.0.1"
@@ -32,7 +34,7 @@ class Settings(BaseSettings):
     # ENTSO-E token: human-obtained by email (~3 working days). Empty until granted.
     entsoe_token: str = ""
 
-    @field_validator("emap_db_path")
+    @field_validator("emap_db_path", "emap_topology_path")
     @classmethod
     def _resolve_relative_to_repo(cls, v: Path) -> Path:
         return v if v.is_absolute() else (REPO_ROOT / v).resolve()

@@ -19,6 +19,7 @@ from emap import __version__
 from emap.config import Settings, get_settings
 from emap.schema import Quantity, Sample, Source
 from emap.store import Store, open_store, query_samples
+from emap.topology import Topology, load_topology
 
 
 class MigrationInfo(BaseModel):
@@ -46,13 +47,26 @@ def _store_dep(request: Request) -> Store:
 StoreDep = Annotated[Store, Depends(_store_dep)]
 
 
-def create_app(settings: Settings | None = None, store: Store | None = None) -> FastAPI:
+def _topology_dep(request: Request) -> Topology:
+    return request.app.state.topology
+
+
+TopologyDep = Annotated[Topology, Depends(_topology_dep)]
+
+
+def create_app(
+    settings: Settings | None = None,
+    store: Store | None = None,
+    topology: Topology | None = None,
+) -> FastAPI:
     settings = settings or get_settings()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         owned = store is None
         app.state.store = store or open_store(settings.emap_db_path)
+        # Validated once at startup: a broken artifact fails the boot, never a request.
+        app.state.topology = topology or load_topology(settings.emap_topology_path)
         try:
             yield
         finally:
@@ -84,6 +98,12 @@ def create_app(settings: Settings | None = None, store: Store | None = None) -> 
                 ],
             ),
         )
+
+    @app.get("/api/topology", response_model=Topology, tags=["topology"])
+    def get_topology(topo: TopologyDep) -> Topology:
+        """The static network: canonical nodes/edges at the finest level plus the precomputed
+        cluster views for coarser levels (service A artifact, validated at startup)."""
+        return topo
 
     @app.get("/api/samples", response_model=list[Sample], tags=["series"])
     def samples(

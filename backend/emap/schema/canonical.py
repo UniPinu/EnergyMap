@@ -52,10 +52,13 @@ class Node(BaseModel):
         default_factory=dict, description="level -> cluster_id; membership in Π_0..Π_L"
     )
     capacity_mw: float | None = Field(
-        default=None, ge=0, description="nameplate / E_max for storage"
+        default=None, ge=0, description="nameplate power rating (MW); storage: P_max"
     )
     fuel: str | None = None
     co2_intensity: float | None = Field(default=None, ge=0, description="tCO2/MWh")
+    # Optional extensions of MVP.md §5.1 (strict superset):
+    energy_mwh: float | None = Field(default=None, ge=0, description="storage E_max (MWh)")
+    voltage_kv: int | None = Field(default=None, ge=0, description="grid bus nominal voltage")
 
 
 class Edge(BaseModel):
@@ -65,7 +68,9 @@ class Edge(BaseModel):
     from_: str = Field(alias="from", min_length=1)
     to: str = Field(min_length=1)
     kind: EdgeKind
-    rating_mw: float = Field(ge=0, description="thermal limit / NTC")
+    rating_mw: float | None = Field(
+        ge=0, description="thermal limit / NTC; null = unrated virtual connection (bus->load)"
+    )
     length_km: float | None = Field(default=None, ge=0)
 
 
