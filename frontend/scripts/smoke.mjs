@@ -148,6 +148,54 @@ await page.evaluate(() => {
 await page.waitForTimeout(600)
 await page.screenshot({ path: path.join(outDir, 'dk1-detail.png') })
 
+// --- Phase 2: live DK numbers on node faces, sidebar with switchable chart --------------------
+await page.waitForFunction(() => document.querySelector('[data-testid="live-status"]')?.textContent?.includes('DK1 live'), null, { timeout: 30000 })
+const live = await page.locator('[data-testid="live-status"]').textContent()
+console.log(`footer: ${live?.trim()}`)
+check(/gen \d+ MW/.test(live ?? ''), 'footer shows live DK1 generation from /api/state')
+await page.getByRole('radio', { name: /^Π2 / }).click()
+await page.waitForTimeout(500)
+await page.evaluate(() => {
+  const f = window.__emapFlow
+  const dk = f.getNodes().filter((n) => n.data.zone === 'DK1').map((n) => ({ id: n.id }))
+  return f.fitView({ nodes: dk, padding: 0.05, duration: 0 })
+})
+await page.waitForTimeout(600)
+// only DK entities are live in Phase 2; neighbour aggregates (zgen:/zload:) stay "—" until Phase 4
+const faces = await page.$$eval('.react-flow__node-source', (els) =>
+  els.filter((e) => /^(plant|dg|store):/.test(e.getAttribute('data-id') ?? '')).map((e) => e.textContent ?? '').filter((t) => /P_gen\s*[\d,]+ MW/.test(t)).length,
+)
+const facesTotal = await page.$$eval('.react-flow__node-source', (els) => els.filter((e) => /^(plant|dg|store):/.test(e.getAttribute('data-id') ?? '')).length)
+console.log(`source faces with a numeric P_gen: ${faces} of ${facesTotal} mounted`)
+check(faces === facesTotal && facesTotal > 50, 'every mounted DK1 source face shows a live P_gen number (not "—")')
+const loadFaces = await page.$$eval('.react-flow__node-consumption', (els) =>
+  els.filter((e) => (e.getAttribute('data-id') ?? '').startsWith('load:')).map((e) => e.textContent ?? '').filter((t) => /D\s*[\d,]+ MW/.test(t)).length,
+)
+const loadTotal = await page.$$eval('.react-flow__node-consumption', (els) => els.filter((e) => (e.getAttribute('data-id') ?? '').startsWith('load:')).length)
+check(loadFaces === loadTotal && loadTotal > 20, `every mounted DK1 consumption face shows live demand (${loadFaces}/${loadTotal})`)
+// click Horns Rev (offshore wind) via the dev hook -> sidebar with vitals + charts
+const hornsId = await page.evaluate(() => window.__emapFlow.getNodes().find((n) => n.data.name.startsWith('Horns Rev'))?.id)
+await page.evaluate((id) => window.__emapFlow.fitView({ nodes: [{ id }], padding: 2, duration: 0 }), hornsId)
+await page.waitForTimeout(400)
+await page.locator(`.react-flow__node[data-id="${hornsId}"]`).click({ force: true })
+await page.waitForSelector('aside h2', { timeout: 5000 })
+const title = await page.locator('aside h2').textContent()
+check(title?.startsWith('Horns Rev') ?? false, `sidebar opens for the clicked source (${title})`)
+await page.waitForFunction(() => document.querySelectorAll('aside .recharts-area-area').length >= 3, null, { timeout: 20000 })
+let charts = await page.locator('aside .recharts-area-area').count()
+check(charts >= 3, `sidebar renders shadcn/Recharts charts (${charts}: node P_gen, zone demand, zone price)`)
+const vit = await page.locator('aside').textContent()
+check(/P_gen\s*[\d,.]+ MW/.test(vit ?? '') && /residual r/.test(vit ?? ''), 'sidebar vitals show P_gen and the zone residual')
+await page.screenshot({ path: path.join(outDir, 'sidebar-24h.png') })
+for (const r of ['week', 'month']) {
+  await page.getByRole('radio', { name: r, exact: true }).click()
+  await page.waitForTimeout(600)
+  const ticks = await page.$$eval('aside .recharts-cartesian-axis-tick-value', (els) => els.map((e) => e.textContent))
+  console.log(`range ${r}: x-axis ticks ${JSON.stringify(ticks.slice(0, 4))}…`)
+  check(ticks.some((t) => /[A-Z][a-z]{2}/.test(t ?? '')), `range ${r} re-windows the chart (date ticks)`)
+  await page.screenshot({ path: path.join(outDir, `sidebar-${r}.png`) })
+}
+
 check(consoleErrors.length === 0, `no console errors (${consoleErrors.slice(0, 3).join(' | ')})`)
 const foreign = [...requests].filter((h) => !/localhost|127\.0\.0\.1/.test(h))
 check(foreign.length === 0, `browser only talks to our own hosts (foreign: ${foreign.join(', ') || 'none'})`)
