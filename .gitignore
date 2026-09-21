@@ -1,0 +1,33 @@
+# --- secrets ---
+.env
+.env.*
+!.env.example
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- data / stores (never commit live data or DB files) ---
+backend/data/
+*.duckdb
+*.duckdb.wal
+topology/work/
+topology/*.nc
+
+# --- node ---
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# --- editors / os ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
