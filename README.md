@@ -15,7 +15,7 @@ Authoritative documents (read in this order):
 |---|---|---|
 | 0 | Foundations — repo, stack, canonical `Sample` schema, projection helper | ✅ built |
 | 1 | Skeleton topology (PyPSA-Eur → React Flow) | ✅ built |
-| 2 | DK live data + sidebar (Energinet) | ⏳ |
+| 2 | DK live data + sidebar (Energinet) | ✅ built |
 | 3 | Balance, residual & LOD | ⏳ |
 | 4 | Neighbours + strain + calendar (ENTSO-E) | ⏳ |
 | 5 | Provenance (Bialek tracing) | ⏳ |
@@ -43,14 +43,25 @@ python -m venv .venv
 .venv/Scripts/pip install -e ".[dev]"      # Windows
 # .venv/bin/pip install -e ".[dev]"        # macOS / Linux
 .venv/Scripts/python scripts/migrate.py    # creates backend/data/energymap.duckdb, applies migrations
+.venv/Scripts/python -m emap.ingest.backfill --days 35 --weeks 12   # ~3 min: DK history from Energinet
 .venv/Scripts/python -m uvicorn emap.api.app:app --reload
 ```
+
+The backfill is optional but makes the week/month charts meaningful on day 1 (35 days of
+5-min production/exchange/CO₂, 12 weeks of hourly load and 15-min prices ≈ 330k rows, 18 MB).
+The running API keeps ingesting on its own: `ElectricityProdex5MinRealtime` and `CO2Emis`
+every 5 min, `GenerationProdTypeExchange` every 20 min, `DayAheadPrices` hourly — one request
+per source update frequency with a dynamic window, never from the browser.
 
 - `http://127.0.0.1:8000/health` — status, applied migrations, UTC server time
 - `http://127.0.0.1:8000/docs` — OpenAPI UI
 - `http://127.0.0.1:8000/api/samples?entity_id=DK1&quantity=price` — canonical rows (empty until Phase 2)
 - `http://127.0.0.1:8000/api/topology` — the static network (validated at startup from
   `topology/artifacts/topology.json`; the app refuses to boot on a broken artifact)
+- `http://127.0.0.1:8000/api/state` — per-node state vectors (§3.2), corridor flows, zone
+  totals with the raw residual, cluster sums; `?t=` for a past instant (UTC ISO)
+- `http://127.0.0.1:8000/api/series?entity_id=DK1&quantity=demand` — canonical or derived series
+- `http://127.0.0.1:8000/api/ingest/status` — last run / rows / error per ingestion job
 
 Run **one** uvicorn worker (the default): DuckDB is single-writer and the scheduled ingesters
 (Phase 2+) run inside the API process.
@@ -67,12 +78,13 @@ Open the URL Vite prints (default `http://localhost:5173`). If Vite picks anothe
 to `EMAP_CORS_ORIGINS` in `.env` and restart the backend. The footer shows the backend status
 read from `/health`.
 
-What you see (Phase 1): the Northern-Europe network at cluster level **Π₀** (19 bidding-zone
-super-nodes). Switch levels with the header buttons: **Π₁** (k-means bus clusters inside
-DK1/DK2, neighbours unchanged) and **Π₂** (every DK bus, plant, load and storage unit; neighbour
-zones as hub + aggregate satellites). Nodes are immovable and sit at the Web-Mercator projection
-of their coordinates; click a node to select it and light up its corridors. Zoom-driven level
-selection and the render budget arrive in Phase 3 — at Π₂ zoom into Denmark to read the cards.
+What you see (Phase 2): the Northern-Europe network at cluster level **Π₀** (19 bidding-zone
+super-nodes); DK1/DK2 carry live numbers, neighbours show "—" until Phase 4. Switch levels with
+the header buttons: **Π₁** (k-means bus clusters inside DK1/DK2) and **Π₂** (every DK bus, plant,
+load, distributed-generation and storage node). Node faces show the three headline statistics
+of their kind from the live state (a ◌ marks a held value). Click a node: the sidebar shows its
+vitals, the zone's raw balance **with the reconciliation residual**, and shadcn charts
+(24h / week / month, switched client-side). The browser polls only this backend.
 
 ### 3. Verify
 
@@ -132,6 +144,24 @@ frontend/             C — React 19 + Vite + @xyflow/react + shadcn/ui + Tailwi
   scripts/            gen-api.mjs (OpenAPI → TypeScript), smoke.mjs (runtime checks)
 ```
 
+## Bus→zone distribution rule (decided in Phase 2, MVP.md §10)
+
+Energinet publishes DK data per bidding zone; the topology is per bus. Every per-node DK number
+is a *disaggregation* of a zonal measurement, balance-preserving by construction:
+
+- **Demand.** Zone gross consumption × `dist_key` of each bus-level load node, where the key is
+  0.6·population + 0.4·GDP share of the bus's Voronoi cell (Eurostat NUTS3, GISCO NUTS 2021 —
+  PyPSA-Eur's rule). Keys sum to 1 per zone; Bornholm's NUTS3 region maps to the nearest DK2 bus.
+- **Generation.** Per 5-min production class (offshore, onshore, solar, thermal ≥ 100 MW,
+  thermal < 100 MW): each modelled plant gets P ∝ nameplate, capped at u ≤ 1; whatever the
+  modelled plants cannot absorb (rooftop PV, units < 20 MW, plants missing from the plant DB)
+  goes to one `dg:` "distributed generation" node per bus, split by the same key.
+- **Exchange.** One corridor per (DK zone, neighbour): F_e = −(import-positive exchange);
+  the Bornholm–SE4 cable is folded into DK2↔SE4. Internal DK line flows are unknown (no load
+  flow in the MVP) and stay unrated on the canvas.
+- **Demand lag.** Load is hourly and ~2 h behind production; the state carries the last
+  published hour forward, flags it `estimated`, and the residual shows the gap honestly.
+
 ## Decisions
 
 - **Store = DuckDB single file** (`backend/data/energymap.duckdb`, git-ignored). No Docker on the
@@ -151,3 +181,11 @@ frontend/             C — React 19 + Vite + @xyflow/react + shadcn/ui + Tailwi
   so the artifact is reproducible and rebuildable.
 - **One flow world for all levels** (36k px, ≈1° lon ≈ 1000 px) with per-level card scale, so the
   zoom-driven LOD (Phase 3) switches levels without moving the viewport.
+- **Canonical grid Δt = 5 min.** Hourly / 15-min natives are expanded onto the grid at ingest
+  (first slot `measured`, the rest `interpolated`, native `resolution` kept). A value is fresh
+  only if a sample exists at t itself; older values are held (`estimated`) up to a horizon.
+- **Zone series are stored, node series are derived.** Zone/class/corridor samples are canonical
+  rows; DK plant / dg / load series are computed on read with the distribution rule, so a node's
+  history and its live face always agree.
+- **Bulk upsert via temp NDJSON + DuckDB `read_json`** — `executemany` runs one prepared
+  statement per row (~5 ms/row); the staged load is ~1000× faster with no extra dependency.
