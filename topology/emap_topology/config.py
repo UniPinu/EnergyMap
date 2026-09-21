@@ -98,7 +98,7 @@ class BuildParams:
     as_of_year: int = 2026  # plants with DateOut < as_of_year are treated as retired
     dk_clusters: dict[str, int] = field(default_factory=lambda: {"DK1": 6, "DK2": 4})  # Π₁
     kmeans_seed: int = 0
-    satellite_offset_deg: tuple[float, float] = (0.10, -0.06)  # (dlon, dlat) for load nodes
+    satellite_offset_deg: tuple[float, float] = (0.22, -0.14)  # (dlon, dlat) for load nodes
 
 
 PARAMS = BuildParams()
