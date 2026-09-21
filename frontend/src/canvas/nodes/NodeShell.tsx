@@ -1,14 +1,16 @@
 import { Handle, Position } from '@xyflow/react'
-import type { ReactNode } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { NodeKind } from '@/lib/api'
-import { ACCENT } from './style'
 import { sourceHandle, targetHandle } from '@/canvas/types'
+import { ACCENT, KIND_ICON } from './style'
+import './node.css'
 
 /**
- * LIAM-style card: accent header (colour = node type, MVP.md §8), three stat rows,
- * hidden handles on all four sides so step edges can enter/leave on the facing side.
- * Deliberately cheap CSS (no shadows/gradients) — hundreds of these may be mounted.
+ * LIAM TableNode structure (TableNode → TableHeader → TableColumnList/TableColumn), ported:
+ * a card with a muted header (icon + name) and rows of icon + label + monospace value.
+ * `related` = LIAM's isHighlighted (1px accent border), `selected` = isActiveHighlighted (2px).
+ * Cheap CSS on purpose — hundreds may be mounted (CONTEXT.md §1.1).
  */
 
 const SIDES = [
@@ -18,13 +20,13 @@ const SIDES = [
   { side: 'b', pos: Position.Bottom },
 ] as const
 
-export function Handles() {
+function Handles() {
   return (
     <>
       {SIDES.map(({ side, pos }) => (
         <span key={side}>
-          <Handle id={sourceHandle(side)} type="source" position={pos} className="!size-0 !min-h-0 !min-w-0 !border-0 !bg-transparent" />
-          <Handle id={targetHandle(side)} type="target" position={pos} className="!size-0 !min-h-0 !min-w-0 !border-0 !bg-transparent" />
+          <Handle id={sourceHandle(side)} type="source" position={pos} />
+          <Handle id={targetHandle(side)} type="target" position={pos} />
         </span>
       ))}
     </>
@@ -32,67 +34,61 @@ export function Handles() {
 }
 
 export interface StatRow {
+  icon: LucideIcon
   label: string
   value: string
+  /** the kind's primary statistic (rendered brighter, like LIAM's key column) */
+  primary?: boolean
+  /** value is held / carried forward */
+  stale?: boolean
 }
 
 export function NodeShell({
   kind,
   title,
-  subtitle,
+  badge,
   rows,
   selected,
   related,
   scale = 1,
-  stale = false,
-  children,
 }: {
   kind: NodeKind | 'cluster'
   title: string
-  subtitle?: string
+  badge?: string
   rows: StatRow[]
   selected: boolean
   related: boolean
   /** CSS zoom applied to the whole card (coarse levels draw larger cards). */
   scale?: number
-  /** primary statistic is a held / carried-forward value, not a fresh measurement */
-  stale?: boolean
-  children?: ReactNode
 }) {
-  const a = ACCENT[kind]
+  const Icon = KIND_ICON[kind]
+  const style: Record<string, string | number> = { '--accent': ACCENT[kind].var }
+  if (scale !== 1) style['zoom'] = scale
   return (
-    <div
-      style={scale !== 1 ? { zoom: scale } : undefined}
-      className={cn(
-        'w-[148px] rounded-md border bg-card text-card-foreground text-[10px] leading-tight',
-        'border-l-[3px]',
-        a.border,
-        selected && 'ring-2 ring-ring',
-        related && !selected && 'ring-1 ring-ring/60',
-      )}
-    >
+    <div className={cn('emap-node', related && 'emap-node--highlighted', selected && 'emap-node--active')} style={style} data-kind={kind}>
       <Handles />
-      <div className="flex items-center gap-1.5 border-b px-1.5 py-1">
-        <span className={cn('inline-block size-1.5 shrink-0 rounded-full', a.dot)} />
-        <span className="truncate font-semibold" title={title}>
+      <div className="emap-node__header">
+        <Icon className="emap-node__icon" strokeWidth={1.5} aria-hidden />
+        <span className="emap-node__name" title={title}>
           {title}
         </span>
-        {subtitle && <span className="ml-auto shrink-0 text-muted-foreground">{subtitle}</span>}
-        {stale && (
-          <span className="shrink-0 text-muted-foreground" title="held value (source lag)">
-            ◌
-          </span>
-        )}
+        {badge && <span className="emap-node__badge">{badge}</span>}
       </div>
-      <div className="space-y-px px-1.5 py-1 font-mono">
-        {rows.map((r) => (
-          <div key={r.label} className="flex justify-between gap-1">
-            <span className="text-muted-foreground">{r.label}</span>
-            <span className={cn('truncate', r === rows[0] && a.text)}>{r.value}</span>
+      {rows.map((r) => (
+        <div key={r.label} className="emap-node__row">
+          <div className="emap-node__cell">
+            <r.icon className={cn('emap-node__row-icon', r.primary && 'emap-node__row-icon--primary')} strokeWidth={1.5} aria-hidden />
+            <span className="emap-node__label">{r.label}</span>
+            <span
+              className={cn('emap-node__value', r.primary && 'emap-node__value--primary', r.stale && 'emap-node__value--stale')}
+              title={r.stale ? 'held value (source lag)' : undefined}
+            >
+              {r.value}
+              {r.stale ? ' ◌' : ''}
+            </span>
           </div>
-        ))}
-      </div>
-      {children}
+        </div>
+      ))}
     </div>
   )
 }

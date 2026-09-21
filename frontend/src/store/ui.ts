@@ -10,18 +10,23 @@ interface UiState {
   level: number
   /** Selected node id (a canonical node id at the finest level, or a cluster id). */
   selectedId: string | null
+  /** Hovered node id — LIAM highlights the hovered node, its neighbours and their edges. */
+  hoverId: string | null
   /** sidebar chart timescale (client-side window over one fetched series) */
   range: Range
   setLevel: (level: number) => void
   select: (id: string | null) => void
+  hover: (id: string | null) => void
   setRange: (range: Range) => void
 }
 
 export const useUi = create<UiState>((set) => ({
   level: 0,
   selectedId: null,
+  hoverId: null,
   range: '24h',
   setLevel: (level) => set({ level, selectedId: null }),
   select: (selectedId) => set({ selectedId }),
+  hover: (hoverId) => set({ hoverId }),
   setRange: (range) => set({ range }),
 }))

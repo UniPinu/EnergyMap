@@ -1,0 +1,151 @@
+/*
+ * Port of liam-hq/liam erd-core TableNode.module.css + TableHeader.module.css +
+ * TableColumn.module.css (Apache-2.0). Class names are ours; rules are LIAM's.
+ * --accent is the node-type colour (MVP.md §8); for sources it equals LIAM's primary accent.
+ */
+
+/* TableNode.wrapper */
+.emap-node {
+  --accent: var(--primary-accent);
+  width: 172px; /* LIAM: auto / min 172px — fixed here so positions and handles are deterministic */
+  min-width: 172px;
+  font-family: var(--main-font);
+  background: var(--node-background);
+  border: 1px solid var(--overlay-20);
+  border-radius: var(--border-radius-md);
+  box-shadow: 0px 0px 20px 0px rgba(0, 0, 0, 0.4);
+  opacity: 1;
+  transition:
+    border-color 300ms var(--default-timing-function),
+    border-width 300ms var(--default-timing-function);
+}
+
+/* TableNode.wrapperHighlighted / :hover */
+.emap-node--highlighted,
+.emap-node:hover {
+  border: 1px solid var(--accent);
+  box-shadow: 0px 0px 20px 0px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* TableNode.wrapperActive */
+.emap-node--active,
+.emap-node--active:hover {
+  border: 2px solid var(--accent);
+  box-shadow: 0px 0px 20px 0px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* TableHeader.wrapper + .container */
+.emap-node__header {
+  display: flex;
+  gap: var(--spacing-1);
+  align-items: center;
+  width: 100%;
+  padding: var(--spacing-2);
+  font-size: var(--font-size-5);
+  font-weight: 500;
+  line-height: normal;
+  color: var(--overlay-60);
+  background: var(--global-muted-background);
+  border-radius: var(--border-radius-md) var(--border-radius-md) 0px 0px;
+}
+
+/* TableHeader.tableIcon */
+.emap-node__icon {
+  width: 1rem;
+  min-width: 1rem;
+  height: 1rem;
+  color: var(--accent);
+}
+
+/* TableHeader.name */
+.emap-node__name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emap-node__badge {
+  font-family: var(--code-font);
+  font-size: var(--font-size-1);
+  font-weight: 400;
+  color: var(--overlay-40);
+  white-space: nowrap;
+}
+
+/* TableColumn.wrapper */
+.emap-node__row {
+  background: var(--node-background);
+  transition: background-color var(--default-hover-animation-duration) var(--default-timing-function);
+}
+.emap-node__row:not(:last-child) {
+  border-bottom: 1px solid var(--node-border);
+}
+.emap-node__row:last-child {
+  border-bottom-right-radius: var(--border-radius-md);
+  border-bottom-left-radius: var(--border-radius-md);
+}
+.emap-node__row:hover {
+  background-color: var(--pane-background-hover);
+}
+
+/* TableColumn.columnWrapper */
+.emap-node__cell {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--spacing-1half);
+  align-items: center;
+  padding: var(--spacing-2);
+  overflow-x: hidden;
+  font-size: var(--font-size-3);
+  line-height: normal;
+  color: var(--global-foreground);
+}
+
+/* TableColumn.diamondIcon / primaryKeyIcon */
+.emap-node__row-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--overlay-70);
+}
+.emap-node__row-icon--primary {
+  color: var(--accent);
+}
+
+.emap-node__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* TableColumn.columnType — LIAM hides types until highlighted; our values are the point,
+   so they stay visible, in the same code font / size / colour. */
+.emap-node__value {
+  font-family: var(--code-font);
+  font-size: var(--font-size-1);
+  font-weight: 400;
+  line-height: normal;
+  color: var(--overlay-70);
+  text-align: right;
+  white-space: nowrap;
+}
+.emap-node__value--primary {
+  font-size: var(--font-size-2);
+  color: var(--global-foreground);
+}
+.emap-node__value--stale {
+  color: var(--overlay-40);
+}
+
+/* TableHeader.handle — invisible; edges attach at the card edge */
+.emap-node .react-flow__handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}

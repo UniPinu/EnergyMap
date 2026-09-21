@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import type { NodeProps } from '@xyflow/react'
+import { Boxes, Scale, Sigma } from 'lucide-react'
 import type { ClusterFlowNode } from '@/canvas/types'
 import { NodeShell } from './NodeShell'
 import { mw } from './format'
@@ -13,15 +14,14 @@ export const ClusterNodeView = memo(function ClusterNodeView({ data, selected }:
     <NodeShell
       kind="cluster"
       title={data.name}
-      subtitle={`Π${data.level}`}
+      badge={`Π${data.level}`}
       selected={!!selected}
       related={data.related}
       scale={data.scale}
-      stale={s?.quality === 'estimated'}
       rows={[
-        { label: 'n', value: n == null ? '—' : `${n > 0 ? '+' : ''}${mw(n)}` },
-        { label: 'gen / load', value: `${mw(s?.p_gen)} / ${mw(s?.demand)}` },
-        { label: 'members', value: `${c.grid}g ${c.source}s ${c.consumption}c ${c.storage}b` },
+        { icon: Scale, label: 'n', value: n == null ? '—' : `${n > 0 ? '+' : ''}${mw(n)}`, primary: true, stale: s?.quality === 'estimated' },
+        { icon: Sigma, label: 'gen / load', value: s?.p_gen == null && s?.demand == null ? '—' : `${s?.p_gen == null ? '—' : Math.round(s.p_gen).toLocaleString('en-US')} / ${mw(s?.demand)}` },
+        { icon: Boxes, label: 'members', value: `${c.grid}g ${c.source}s ${c.consumption}c ${c.storage}b` },
       ]}
     />
   )

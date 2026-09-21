@@ -1,0 +1,15 @@
+/* Port of liam-hq/liam erd-core RelationshipEdge.module.css */
+.emap-edge {
+  stroke: var(--pane-border-hover);
+  stroke-width: 1px;
+  transition: stroke 0.3s var(--default-timing-function);
+}
+.emap-edge[data-loading='warning'] {
+  stroke: var(--severity-warning-100);
+}
+.emap-edge[data-loading='danger'] {
+  stroke: var(--danger-default);
+}
+.emap-edge.emap-edge--highlighted {
+  stroke: var(--node-layout);
+}

@@ -1,0 +1,92 @@
+/* Port of liam-hq/liam erd-core ERDRenderer.module.css + AppBar.module.css */
+.emap-app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  font-family: var(--main-font);
+  color: var(--global-foreground);
+  background-color: var(--global-background);
+}
+.emap-appbar {
+  z-index: 1000;
+  display: flex;
+  gap: var(--spacing-4);
+  align-items: center;
+  min-height: var(--layout-app-bar-height);
+  padding: 0 var(--spacing-4);
+  background-color: var(--global-muted-background);
+  border-bottom: 1px solid var(--pane-border);
+}
+.emap-appbar__logo {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--primary-accent);
+}
+.emap-appbar__title {
+  flex: 1;
+  font-size: var(--font-size-4);
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--overlay-40);
+  text-align: left;
+}
+.emap-appbar__title em {
+  margin-left: var(--spacing-2);
+  font-family: var(--code-font);
+  font-size: var(--font-size-1);
+  font-style: normal;
+  font-weight: 400;
+  color: var(--overlay-30);
+}
+.emap-appbar__right {
+  display: grid;
+  grid-auto-flow: column;
+  gap: var(--spacing-4);
+  align-items: center;
+}
+.emap-appbar__status {
+  font-family: var(--code-font);
+  font-size: var(--font-size-2);
+  line-height: normal;
+  color: var(--overlay-60);
+  white-space: nowrap;
+}
+.emap-appbar__status b {
+  font-weight: 400;
+  color: var(--primary-accent);
+}
+.emap-appbar__status i {
+  font-style: normal;
+  color: var(--danger-default);
+}
+.emap-legend {
+  display: grid;
+  grid-auto-flow: column;
+  gap: var(--spacing-3);
+  font-size: var(--font-size-2);
+  color: var(--overlay-60);
+}
+.emap-legend li {
+  display: flex;
+  gap: var(--spacing-1half);
+  align-items: center;
+}
+.emap-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--border-radius-full);
+}
+.emap-main {
+  position: relative;
+  min-height: 0;
+}
+.emap-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: var(--font-size-3);
+  color: var(--overlay-60);
+}

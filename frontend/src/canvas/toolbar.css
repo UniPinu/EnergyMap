@@ -1,0 +1,82 @@
+/* Port of liam-hq/liam erd-core DesktopToolbar / ToolbarIconButton / ZoomControls / ShowModeMenu */
+.emap-toolbar-wrapper {
+  margin-bottom: 2rem;
+}
+.emap-toolbar {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1half) var(--spacing-2);
+  font-family: var(--main-font);
+  background-color: var(--pane-background);
+  border: 1px solid var(--global-border);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0px 4px 20px 0px var(--shadow-basic-shadow);
+}
+.emap-toolbar__separator {
+  align-self: stretch;
+  margin: 0 var(--spacing-4);
+  border-left: 1px solid var(--global-border);
+}
+.emap-toolbar__buttons {
+  display: grid;
+  grid-auto-flow: column;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+.emap-toolbar__icon-button {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-1);
+  border-radius: var(--border-radius-base);
+  transition: background-color var(--default-hover-animation-duration) var(--default-timing-function);
+}
+.emap-toolbar__icon-button svg {
+  width: 16px;
+  height: 16px;
+  color: var(--global-foreground);
+}
+.emap-toolbar__icon-button:hover {
+  background-color: var(--pane-background-active);
+}
+.emap-toolbar__icon-button:focus-visible,
+.emap-toolbar__text-button:focus-visible {
+  outline: 1px solid var(--primary-color);
+}
+.emap-toolbar__zoom {
+  min-width: 3.5ch;
+  font-family: var(--code-font);
+  font-size: var(--font-size-3);
+  font-weight: 400;
+  line-height: 100%;
+  color: var(--global-foreground);
+  text-align: center;
+}
+.emap-toolbar__menu-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--overlay-60);
+}
+.emap-toolbar__label {
+  font-size: var(--font-size-3);
+  font-weight: 400;
+  line-height: normal;
+  color: var(--overlay-60);
+}
+.emap-toolbar__text-button {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: center;
+  padding: var(--spacing-2) var(--spacing-1);
+  font-family: var(--code-font);
+  font-size: var(--font-size-2);
+  color: var(--global-foreground);
+  border-radius: var(--border-radius-base);
+  transition: background-color var(--default-hover-animation-duration) var(--default-timing-function);
+}
+.emap-toolbar__text-button:hover {
+  background-color: var(--pane-background-active);
+}
+.emap-toolbar__text-button--active {
+  color: var(--primary-accent);
+  background-color: var(--primary-overlay-10);
+}

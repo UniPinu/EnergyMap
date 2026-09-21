@@ -1,13 +1,14 @@
 import { useCallback, useMemo } from 'react'
-import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, type NodeMouseHandler, type ReactFlowInstance } from '@xyflow/react'
+import { Background, BackgroundVariant, ReactFlow, type NodeMouseHandler, type ReactFlowInstance } from '@xyflow/react'
 import type { Topology } from '@/lib/api'
 import { applyState, buildFlow } from '@/lib/topology'
 import { useLive } from '@/store/live'
 import { useUi } from '@/store/ui'
 import type { AnyFlowNode, CorridorEdge } from '@/canvas/types'
-import { CorridorEdgeView } from '@/canvas/edges/CorridorEdge'
+import { CorridorEdgeView, ParticleGradient } from '@/canvas/edges/CorridorEdge'
 import { ClusterNodeView } from '@/canvas/nodes/ClusterNode'
 import { ConsumptionNode, GridNode, SourceNode, StorageNode } from '@/canvas/nodes/EntityNodes'
+import { Toolbar } from '@/canvas/Toolbar'
 
 // Hoisted — defining these inline would remount every node on each render (CONTEXT.md §1.1).
 const nodeTypes = {
@@ -18,26 +19,24 @@ const nodeTypes = {
   cluster: ClusterNodeView,
 }
 const edgeTypes = { corridor: CorridorEdgeView }
-const MINIMAP_COLOR: Record<string, string> = {
-  source: 'var(--node-source)',
-  grid: 'var(--node-grid)',
-  consumption: 'var(--node-consumption)',
-  storage: 'var(--node-storage)',
-  cluster: 'var(--foreground)',
-}
-const minimapNodeColor = (n: AnyFlowNode) => MINIMAP_COLOR[n.type ?? 'cluster'] ?? 'var(--foreground)'
 const proOptions = { hideAttribution: false }
 const fitViewOptions = { padding: 0.05 }
+const MIN_ZOOM = 0.015
+const MAX_ZOOM = 6
 
 /**
- * The balance-graph layer (MVP.md §8): React Flow with immovable, projection-positioned
- * typed nodes and step corridors. Renders ONE cluster level at a time; the zoom→level function
- * and viewport/budget culling arrive in Phase 3 (until then, level is chosen manually).
+ * The balance-graph layer (MVP.md §8): React Flow with immovable, projection-positioned typed
+ * nodes and step corridors, in LIAM's ErdContent configuration (dark, dotted background,
+ * panOnScroll, no deletion) and with LIAM's highlight semantics: the active (selected) node
+ * gets the 2px accent border; the hovered node, neighbours of the active/hovered node and their
+ * corridors get the 1px accent + glow. Renders ONE cluster level at a time until Phase 3.
  */
 export function GridCanvas({ topology }: { topology: Topology }) {
   const level = useUi((s) => s.level)
   const selectedId = useUi((s) => s.selectedId)
+  const hoverId = useUi((s) => s.hoverId)
   const select = useUi((s) => s.select)
+  const hover = useUi((s) => s.hover)
 
   // Structure for the level: built once per (topology, level).
   const structure = useMemo(() => buildFlow(topology, level), [topology, level])
@@ -46,26 +45,30 @@ export function GridCanvas({ topology }: { topology: Topology }) {
   const state = useLive((s) => s.state)
   const graph = useMemo(() => applyState(structure, state), [structure, state])
 
-  // Selection overlay: mark the selected node, its neighbours and incident corridors.
+  // LIAM highlightNodesAndEdges: active + related-to-active | hovered | related-to-hovered.
   const nodes = useMemo<AnyFlowNode[]>(() => {
-    const related = selectedId ? graph.adjacency.get(selectedId) : undefined
+    const relActive = selectedId ? graph.adjacency.get(selectedId) : undefined
+    const relHover = hoverId ? graph.adjacency.get(hoverId) : undefined
+    if (!selectedId && !hoverId) return graph.nodes
     return graph.nodes.map((n) => {
-      const isSel = n.id === selectedId
-      const isRel = related?.has(n.id) ?? false
-      if (!isSel && !isRel && !n.selected && !n.data.related) return n
-      return { ...n, selected: isSel, data: { ...n.data, related: isRel } } as AnyFlowNode
+      const isActive = n.id === selectedId
+      const isRel = (relActive?.has(n.id) ?? false) || n.id === hoverId || (relHover?.has(n.id) ?? false)
+      if (!isActive && !isRel) return n
+      return { ...n, selected: isActive, data: { ...n.data, related: isRel } } as AnyFlowNode
     })
-  }, [graph, selectedId])
+  }, [graph, selectedId, hoverId])
 
   const edges = useMemo<CorridorEdge[]>(() => {
-    if (!selectedId) return graph.edges
+    if (!selectedId && !hoverId) return graph.edges
     return graph.edges.map((e) => {
-      const hit = e.source === selectedId || e.target === selectedId
-      return { ...e, data: { ...e.data!, highlighted: hit, dimmed: !hit } }
+      const hit = e.source === selectedId || e.target === selectedId || e.source === hoverId || e.target === hoverId
+      return hit ? { ...e, zIndex: 1, data: { ...e.data!, highlighted: true } } : e
     })
-  }, [graph, selectedId])
+  }, [graph, selectedId, hoverId])
 
   const onNodeClick = useCallback<NodeMouseHandler<AnyFlowNode>>((_, node) => select(node.id), [select])
+  const onNodeMouseEnter = useCallback<NodeMouseHandler<AnyFlowNode>>((_, node) => hover(node.id), [hover])
+  const onNodeMouseLeave = useCallback(() => hover(null), [hover])
   const onPaneClick = useCallback(() => select(null), [select])
   // Dev-only hook for the runtime smoke harness (scripts/smoke.mjs): drive fitView/zoom from outside.
   const onInit = useCallback((instance: ReactFlowInstance<AnyFlowNode, CorridorEdge>) => {
@@ -74,11 +77,14 @@ export function GridCanvas({ topology }: { topology: Topology }) {
 
   return (
     <ReactFlow<AnyFlowNode, CorridorEdge>
+      colorMode="dark"
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onNodeClick={onNodeClick}
+      onNodeMouseEnter={onNodeMouseEnter}
+      onNodeMouseLeave={onNodeMouseLeave}
       onPaneClick={onPaneClick}
       onInit={onInit}
       nodesDraggable={false}
@@ -86,17 +92,19 @@ export function GridCanvas({ topology }: { topology: Topology }) {
       elementsSelectable
       selectNodesOnDrag={false}
       onlyRenderVisibleElements
-      minZoom={0.015}
-      maxZoom={6}
+      panOnScroll
+      deleteKeyCode={null}
+      minZoom={MIN_ZOOM}
+      maxZoom={MAX_ZOOM}
       fitView
       fitViewOptions={fitViewOptions}
       proOptions={proOptions}
-      colorMode="dark"
+      attributionPosition="bottom-left"
       className="bg-background"
     >
-      <Background variant={BackgroundVariant.Dots} gap={40} size={1} color="color-mix(in oklch, var(--foreground) 12%, transparent)" />
-      <Controls showInteractive={false} />
-      <MiniMap pannable zoomable nodeColor={minimapNodeColor} maskColor="color-mix(in oklch, var(--background) 70%, transparent)" />
+      <Background color="var(--color-gray-600)" variant={BackgroundVariant.Dots} size={1} gap={16} />
+      <ParticleGradient />
+      <Toolbar levels={topology.meta.levels} />
     </ReactFlow>
   )
 }

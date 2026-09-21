@@ -17,7 +17,7 @@ export const WORLD = { width: 36000, height: 36000 }
 export const projection: Projection = fitBounds(NORTHERN_EUROPE_BOUNDS, WORLD, 600)
 
 /** Rendered card size at scale 1, used to centre nodes on their projected point. */
-export const CARD = { width: 148, height: 71 }
+export const CARD = { width: 172, height: 132 }
 
 /**
  * Card scale per cluster level: coarse levels carry few nodes and are viewed zoomed-out, so their

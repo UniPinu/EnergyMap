@@ -1,0 +1,98 @@
+/*
+ * LIAM design tokens, copied verbatim from liam-hq/liam (Apache-2.0):
+ *   frontend/packages/ui/src/styles/{Dark,Mode 1}/variables.css, variables.css, fonts.css
+ * CONTEXT.md §1.2: replicate erd-core's look — tokens + component structure — do not import it.
+ * Only the subset the terminal uses is kept; names are unchanged so LIAM's CSS ports 1:1.
+ */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+:root {
+  /* typography (Mode 1) */
+  --main-font: Inter, sans-serif;
+  --code-font: 'ui-monospace', 'IBM Plex Mono', SF Mono, Menlo, Monaco, Consolas, monospace;
+  --font-size-1: 10px;
+  --font-size-2: 11px;
+  --font-size-3: 12px;
+  --font-size-4: 13px;
+  --font-size-5: 14px;
+  --font-size-6: 16px;
+
+  /* spacing / radii */
+  --spacing-1: 4px;
+  --spacing-1half: 6px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --border-radius-base: 4px;
+  --border-radius-md: 6px;
+  --border-radius-lg: 8px;
+  --border-radius-full: 9999px;
+
+  /* motion */
+  --default-timing-function: ease-out;
+  --default-animation-duration: 300ms;
+  --default-hover-animation-duration: 100ms;
+
+  /* layout */
+  --layout-app-bar-height: 52px;
+  --default-header-height: var(--layout-app-bar-height);
+
+  /* Dark theme */
+  --global-background: #141616;
+  --global-muted-background: #232526;
+  --global-foreground: #ffffff;
+  --global-border: #383a3b;
+  --global-body-text: #d1d2d3;
+  --global-mute-text: #bebfc1;
+  --danger-default: #c64427;
+  --severity-warning-100: #ffd748;
+  --primary-accent: #1ded83;
+  --primary-color: #1ded83;
+  --primary-overlay-5: rgba(29, 237, 131, 0.05);
+  --primary-overlay-10: rgba(29, 237, 131, 0.1);
+  --primary-overlay-15: rgba(29, 237, 131, 0.15);
+  --primary-overlay-20: rgba(29, 237, 131, 0.2);
+  --overlay-5: rgba(255, 255, 255, 0.05);
+  --overlay-10: rgba(255, 255, 255, 0.1);
+  --overlay-20: rgba(255, 255, 255, 0.2);
+  --overlay-30: rgba(255, 255, 255, 0.3);
+  --overlay-40: rgba(255, 255, 255, 0.4);
+  --overlay-50: rgba(255, 255, 255, 0.5);
+  --overlay-60: rgba(255, 255, 255, 0.6);
+  --overlay-70: rgba(255, 255, 255, 0.7);
+  --shadow-basic-shadow: #000000;
+  --pane-border: #383a3b;
+  --pane-border-hover: #5f6366;
+  --pane-background: #232526;
+  --pane-muted-background: #2e3031;
+  --pane-background-hover: #383a3b;
+  --pane-background-active: #2e3031;
+  --node-border: #5f6366;
+  --node-background: #141616;
+  --node-layout: #1ded83;
+  --color-gray-600: #393b3c;
+
+  /* scrollbars (LIAM globals.css) */
+  --scrollbar-width: thin;
+  --scrollbar-track-background: transparent;
+  --scrollbar-thumb-background: var(--overlay-20);
+  --scrollbar-thumb-background-hover: var(--global-border);
+
+  /*
+   * Node-type encoding (MVP.md §8). Source = "emerald green (LIAM default)" = LIAM's primary
+   * accent; grid / consumption / storage keep the same saturation register.
+   */
+  --node-source: #1ded83;
+  --node-grid: #22d3ee;
+  --node-consumption: #fbbf24;
+  --node-storage: #a78bfa;
+}
+
+@supports (scrollbar-color: auto) {
+  * {
+    scrollbar-color: var(--scrollbar-thumb-background) var(--scrollbar-track-background);
+    scrollbar-width: var(--scrollbar-width);
+  }
+}

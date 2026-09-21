@@ -46,10 +46,12 @@ export function SeriesChart({
   const derived = entry && entry !== 'loading' && !('error' in entry) ? entry.derived_from : null
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-baseline justify-between text-xs">
-        <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground">{unit}</span>
+    <div className="grid gap-2">
+      <div className="flex items-baseline justify-between">
+        <span className="emap-detail__item-heading">{label}</span>
+        <span className="font-mono text-[10px]" style={{ color: 'var(--overlay-40)' }}>
+          {unit}
+        </span>
       </div>
       {entry === 'loading' && <Placeholder height={height}>loading…</Placeholder>}
       {entry && entry !== 'loading' && 'error' in entry && <Placeholder height={height}>unavailable: {entry.error}</Placeholder>}
@@ -57,7 +59,7 @@ export function SeriesChart({
       {data.length > 0 && (
         <ChartContainer config={config} className="w-full" style={{ height }}>
           <AreaChart data={data} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
-            <CartesianGrid vertical={false} strokeOpacity={0.15} />
+            <CartesianGrid vertical={false} stroke="var(--global-border)" />
             <XAxis
               dataKey="t"
               type="number"
@@ -84,14 +86,18 @@ export function SeriesChart({
           </AreaChart>
         </ChartContainer>
       )}
-      {derived && <p className="text-[10px] leading-tight text-muted-foreground">derived: {derived}</p>}
+      {derived && (
+        <p className="text-[10px] leading-tight" style={{ color: 'var(--overlay-40)' }}>
+          derived: {derived}
+        </p>
+      )}
     </div>
   )
 }
 
 function Placeholder({ children, height }: { children: React.ReactNode; height: number }) {
   return (
-    <div className="flex items-center justify-center rounded border border-dashed text-xs text-muted-foreground" style={{ height }}>
+    <div className="flex items-center justify-center rounded border border-dashed text-[11px]" style={{ height, color: 'var(--overlay-40)', borderColor: 'var(--global-border)' }}>
       {children}
     </div>
   )

@@ -1,35 +1,25 @@
 import { memo } from 'react'
 import { BaseEdge, getSmoothStepPath, type EdgeProps } from '@xyflow/react'
-import type { EdgeKind } from '@/lib/api'
 import type { CorridorEdge } from '@/canvas/types'
+import './edge.css'
 
 /**
- * Transmission corridor (MVP.md §8): step path, thickness ∝ rating for now (∝ |F_e| once
- * flows arrive in Phase 2/3), tint by kind, full corridor highlighted when an incident node is
- * selected (LIAM behaviour), everything else dimmed.
+ * Transmission corridor. Look ported from LIAM's RelationshipEdge: 1px `--pane-border-hover`
+ * stroke, `--node-layout` (accent green) when highlighted, with LIAM's six travelling particles
+ * along the highlighted path. Per MVP.md §8 the path is a step (not LIAM's bezier), thickness
+ * grows with |F_e| when a flow is measured, and a loaded corridor tints toward warning/danger.
  */
-const STROKE: Record<EdgeKind, string> = {
-  ac_line: 'var(--node-grid)',
-  hvdc_link: 'var(--node-storage)',
-  interconnector: 'var(--node-consumption)',
-}
+const PARTICLE_COUNT = 6
+const ANIMATE_DURATION = 6
 
-/** Thickness ∝ |F_e| when a flow is measured (MVP.md §8), else ∝ rating (structural). */
 function width(flow: number | null | undefined, ratingMw: number | null): number {
-  const mwv = flow != null ? Math.abs(flow) : ratingMw
-  if (mwv == null || mwv <= 0) return 1
-  return Math.min(8, 1 + Math.log10(mwv) * 1.2)
-}
-
-/** Tint ∝ loading ℓ_e: kind colour below 60 %, amber toward 90 %, red above. */
-function loadingStroke(kind: EdgeKind, loading: number | null | undefined): string {
-  if (loading == null) return STROKE[kind]
-  if (loading >= 0.9) return 'var(--destructive)'
-  if (loading >= 0.6) return 'var(--node-consumption)'
-  return STROKE[kind]
+  const mwv = flow != null ? Math.abs(flow) : null
+  if (mwv == null) return ratingMw && ratingMw > 3000 ? 1.5 : 1
+  return Math.min(4, 1 + Math.log10(Math.max(mwv, 1)) * 0.8)
 }
 
 export const CorridorEdgeView = memo(function CorridorEdgeView({
+  id,
   sourceX,
   sourceY,
   targetX,
@@ -41,16 +31,48 @@ export const CorridorEdgeView = memo(function CorridorEdgeView({
   const [path] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 6 })
   const kind = data?.kind ?? 'ac_line'
   const highlighted = data?.highlighted ?? false
-  const dimmed = data?.dimmed ?? false
+  const loading = data?.loading ?? null
+  const level = loading == null ? undefined : loading >= 0.9 ? 'danger' : loading >= 0.6 ? 'warning' : undefined
   return (
-    <BaseEdge
-      path={path}
-      style={{
-        stroke: highlighted ? 'var(--ring)' : loadingStroke(kind, data?.loading),
-        strokeWidth: width(data?.flow, data?.ratingMw ?? null) * (highlighted ? 1.5 : 1),
-        strokeDasharray: kind === 'hvdc_link' || kind === 'interconnector' ? '6 4' : undefined,
-        opacity: dimmed ? 0.12 : highlighted ? 1 : data?.flow != null ? 0.85 : 0.45,
-      }}
-    />
+    <>
+      <BaseEdge
+        id={id}
+        path={path}
+        className={`emap-edge${highlighted ? ' emap-edge--highlighted' : ''}`}
+        style={{
+          strokeWidth: width(data?.flow, data?.ratingMw ?? null),
+          strokeDasharray: kind === 'hvdc_link' || kind === 'interconnector' ? '6 4' : undefined,
+        }}
+        data-loading={level}
+      />
+      {highlighted &&
+        [...Array(PARTICLE_COUNT)].map((_, i) => (
+          <ellipse key={`particle-${i}`} rx="5" ry="1.2" fill="url(#emapParticleGradient)">
+            <animateMotion
+              begin={`${-i * (ANIMATE_DURATION / PARTICLE_COUNT)}s`}
+              dur={`${ANIMATE_DURATION}s`}
+              repeatCount="indefinite"
+              rotate="auto"
+              path={path}
+              calcMode="spline"
+              keySplines="0.42, 0, 0.58, 1.0"
+            />
+          </ellipse>
+        ))}
+    </>
   )
 })
+
+/** LIAM's RelationshipEdgeParticleMarker gradient; mount once inside the ReactFlow canvas. */
+export function ParticleGradient() {
+  return (
+    <svg width="0" height="0" style={{ position: 'absolute' }}>
+      <defs>
+        <linearGradient id="emapParticleGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="var(--node-layout)" stopOpacity="0" />
+          <stop offset="100%" stopColor="var(--node-layout)" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+    </svg>
+  )
+}
