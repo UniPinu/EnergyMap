@@ -41,6 +41,7 @@ class TopologyMeta(BaseModel):
     sources: list[dict[str, str]]
     levels: list[LevelInfo]
     finest_level: int
+    distribution_rule: dict[str, str] = Field(default_factory=dict)
 
 
 class ClusterNode(BaseModel):
@@ -80,6 +81,7 @@ class Topology(BaseModel):
     nodes: list[Node]
     edges: list[Edge]
     edge_members: dict[str, list[str]]
+    load_key_detail: dict[str, dict[str, float]] = Field(default_factory=dict)
     views: dict[str, LevelView]
 
     @model_validator(mode="after")
