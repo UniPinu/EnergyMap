@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { Background, BackgroundVariant, ReactFlow, type NodeMouseHandler, type ReactFlowInstance } from '@xyflow/react'
 import type { Topology } from '@/lib/api'
 import { applyState, buildFlow } from '@/lib/topology'
@@ -9,6 +9,9 @@ import { CorridorEdgeView, ParticleGradient } from '@/canvas/edges/CorridorEdge'
 import { ClusterNodeView } from '@/canvas/nodes/ClusterNode'
 import { ConsumptionNode, GridNode, SourceNode, StorageNode } from '@/canvas/nodes/EntityNodes'
 import { Toolbar } from '@/canvas/Toolbar'
+import { LodController } from '@/lod/LodController'
+import { remapSelection } from '@/lod/selection'
+import { ZoneChoropleth } from '@/map/ZoneChoropleth'
 
 // Hoisted — defining these inline would remount every node on each render (CONTEXT.md §1.1).
 const nodeTypes = {
@@ -29,7 +32,8 @@ const MAX_ZOOM = 6
  * nodes and step corridors, in LIAM's ErdContent configuration (dark, dotted background,
  * panOnScroll, no deletion) and with LIAM's highlight semantics: the active (selected) node
  * gets the 2px accent border; the hovered node, neighbours of the active/hovered node and their
- * corridors get the 1px accent + glow. Renders ONE cluster level at a time until Phase 3.
+ * corridors get the 1px accent + glow. The level rendered is chosen by the LOD engine from the
+ * zoom and the render budget (MVP.md §4.2); Π₀ additionally shows the zone choropleth.
  */
 export function GridCanvas({ topology }: { topology: Topology }) {
   const level = useUi((s) => s.level)
@@ -38,8 +42,19 @@ export function GridCanvas({ topology }: { topology: Topology }) {
   const select = useUi((s) => s.select)
   const hover = useUi((s) => s.hover)
 
-  // Structure for the level: built once per (topology, level).
-  const structure = useMemo(() => buildFlow(topology, level), [topology, level])
+  // Structures for every level, built once: the LOD engine counts against all of them and the
+  // canvas swaps arrays on the chosen level (positions share one world, so no viewport jump).
+  const structures = useMemo(
+    () => Array.from({ length: topology.meta.finest_level + 1 }, (_, l) => buildFlow(topology, l)),
+    [topology],
+  )
+  const structure = structures[Math.min(level, structures.length - 1)]!
+
+  // Keep the selection meaningful when the level changes (bus → its cluster, cluster → hub).
+  useEffect(() => {
+    const mapped = remapSelection(topology, useUi.getState().selectedId, level)
+    if (mapped !== useUi.getState().selectedId) select(mapped)
+  }, [topology, level, select])
 
   // Live overlay (one /api/state poll per minute): nodes without any stats keep their identity.
   const state = useLive((s) => s.state)
@@ -104,7 +119,9 @@ export function GridCanvas({ topology }: { topology: Topology }) {
     >
       <Background color="var(--color-gray-600)" variant={BackgroundVariant.Dots} size={1} gap={16} />
       <ParticleGradient />
-      <Toolbar levels={topology.meta.levels} />
+      <ZoneChoropleth />
+      <LodController structures={structures} />
+      <Toolbar levels={topology.meta.levels} topology={topology} />
     </ReactFlow>
   )
 }

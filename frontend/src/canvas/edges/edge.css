@@ -2,6 +2,8 @@
 .emap-edge {
   stroke: var(--pane-border-hover);
   stroke-width: 1px;
+  /* the world is 36k px wide and zoom reaches 0.015: keep strokes in screen pixels */
+  vector-effect: non-scaling-stroke;
   transition: stroke 0.3s var(--default-timing-function);
 }
 .emap-edge[data-loading='warning'] {

@@ -41,12 +41,35 @@ async function counts() {
   }))
 }
 
+// --- Phase 3: open view = zonal summary + choropleth; zoom drives the level; budget holds -----
+await page.waitForTimeout(600)
+const open = await counts()
+const lodText = async () => (await page.locator('[data-testid="lod-budget"]').textContent())?.trim() ?? ''
+const mapInfo = async () =>
+  page.evaluate(() => ({
+    visible: document.querySelector('.emap-map')?.getAttribute('data-visible'),
+    regions: document.querySelectorAll('.emap-map path').length,
+    tinted: [...document.querySelectorAll('.emap-map path')].filter((p) => /emap-chor-[0-4]/.test(p.getAttribute('class') ?? '')).length,
+  }))
+const m0 = await mapInfo()
+console.log(`open view: zoom ${await page.evaluate(() => window.__emapFlow.getZoom().toFixed(3))}, nodes=${open.nodes} (${open.byType.cluster} zone cards), map visible=${m0.visible} regions=${m0.regions} tinted=${m0.tinted}, lod ${await lodText()}`)
+check(open.byType.cluster === 19 && open.nodes === 19, 'open view is the zonal summary (19 zone super-nodes, nothing finer)')
+check(m0.visible === 'true' && m0.regions === 18 && m0.tinted >= 2, 'choropleth of bidding zones is shown at Π₀ with DK zones tinted by r̂')
+const gauge = (await page.locator('[data-testid="residual-gauge"]').textContent()) ?? ''
+console.log(`residual gauge: ${gauge}`)
+check(/DK1[^D]*[-+]\d+\.\d%/.test(gauge) && /DK2[^D]*[-+]\d+\.\d%/.test(gauge), 'residual gauge shows r̂ for DK1 and DK2')
+
 for (const level of [0, 1, 2]) {
   await page.getByRole('radio', { name: new RegExp(`^Π${level} `) }).click()
-  await page.waitForTimeout(600)
+  await page.waitForTimeout(900)
   const c = await counts()
-  console.log(`level ${level}: mounted nodes=${c.nodes} edges=${c.edges} byType=${JSON.stringify(c.byType)}`)
+  const z = await page.evaluate(() => window.__emapFlow.getZoom())
+  const m = await mapInfo()
+  console.log(`zoom→Π${level}: zoom=${z.toFixed(3)} mounted nodes=${c.nodes} edges=${c.edges} byType=${JSON.stringify(c.byType)} map=${m.visible} lod=${await lodText()}`)
   check(c.nodes > 0 && c.edges > 0, `level ${level} renders nodes and edges`)
+  check(c.nodes <= 400, `render budget holds at level ${level} (${c.nodes} ≤ 400)`)
+  check(m.visible === (level === 0 ? 'true' : 'false'), `choropleth ${level === 0 ? 'shown' : 'hidden'} at Π${level}`)
+  check((level === 0) === (c.byType.cluster === 19) && (level === 2) === (c.byType.cluster === 0), `zoom selected Π${level}`)
   if (level === 2) {
     check(
       c.byType.source > 0 && c.byType.grid > 0 && c.byType.consumption > 0 && c.byType.storage > 0,
@@ -59,7 +82,20 @@ for (const level of [0, 1, 2]) {
 // --- click selects (LIAM corridor highlight) ---------------------------------------------------
 // Level 0 (zones) has no overlapping cards: a real hit-test click must select exactly that node.
 await page.getByRole('radio', { name: /^Π0 / }).click()
-await page.waitForTimeout(400)
+await page.waitForTimeout(700)
+// region click on the choropleth (Zealand) selects DK2 through the same sidebar
+{
+  const hit = await page.evaluate(() => {
+    const p = [...document.querySelectorAll('.emap-map path')].find((e) => e.getAttribute('aria-label')?.includes('Denmark East'))
+    if (!p) return null
+    const r = p.getBoundingClientRect()
+    return { x: r.x + r.width * 0.55, y: r.y + r.height * 0.35 }
+  })
+  if (hit) await page.mouse.click(hit.x, hit.y)
+  await page.waitForTimeout(400)
+  const t = await page.locator('aside h1').textContent().catch(() => '')
+  check(t?.startsWith('Denmark East') ?? false, `region click on the map opens the zone in the sidebar (${t?.trim()})`)
+}
 const zone = page.locator('.react-flow__node[data-id="DK1"]')
 await zone.click()
 await page.waitForTimeout(300)
@@ -160,10 +196,11 @@ await page.getByRole('radio', { name: /^Π2 / }).click()
 await page.waitForTimeout(500)
 await page.evaluate(() => {
   const f = window.__emapFlow
-  const dk = f.getNodes().filter((n) => n.data.zone === 'DK1').map((n) => ({ id: n.id }))
+  // fit the DK1 substations (not the offshore farms far out at sea): stays in the Π₂ zoom band
+  const dk = f.getNodes().filter((n) => n.data.zone === 'DK1' && n.type === 'grid').map((n) => ({ id: n.id }))
   return f.fitView({ nodes: dk, padding: 0.05, duration: 0 })
 })
-await page.waitForTimeout(600)
+await page.waitForTimeout(800)
 // only DK entities are live in Phase 2; neighbour aggregates (zgen:/zload:) stay "—" until Phase 4
 const faces = await page.$$eval('.react-flow__node-source', (els) =>
   els.filter((e) => /^(plant|dg|store):/.test(e.getAttribute('data-id') ?? '')).map((e) => e.textContent ?? '').filter((t) => /P_gen\s*[\d,]+ MW/.test(t)).length,

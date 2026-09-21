@@ -1,0 +1,53 @@
+/* Zone choropleth (Π₀ geographic layer) in LIAM's register. The SVG lives in React Flow world
+   coordinates (36k px), so strokes must not scale with zoom. */
+.emap-map {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* the transformed viewport is a stacking context: -1 paints under edges and nodes, above the pane */
+  z-index: -1;
+  transition: opacity 240ms var(--default-timing-function);
+}
+.emap-map[data-visible='false'] {
+  opacity: 0;
+  pointer-events: none;
+}
+.emap-map svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.emap-map path[data-slot='map-region'],
+.emap-map path {
+  vector-effect: non-scaling-stroke;
+  stroke: var(--global-border);
+  stroke-width: 1px;
+  transition: fill 240ms var(--default-timing-function);
+}
+.emap-map path:hover {
+  stroke: var(--pane-border-hover);
+}
+/* fill by |r̂| bucket (residualBucket); unlayered rules beat Tailwind's layered utilities */
+.emap-map .emap-chor-none {
+  fill: var(--overlay-5);
+}
+.emap-map .emap-chor-0 {
+  fill: rgba(29, 237, 131, 0.18);
+}
+.emap-map .emap-chor-1 {
+  fill: rgba(29, 237, 131, 0.09);
+}
+.emap-map .emap-chor-2 {
+  fill: rgba(255, 215, 72, 0.16);
+}
+.emap-map .emap-chor-3 {
+  fill: rgba(255, 215, 72, 0.3);
+}
+.emap-map .emap-chor-4 {
+  fill: rgba(198, 68, 39, 0.4);
+}
+.emap-map path[data-selected='true'],
+.emap-map .emap-chor-selected {
+  stroke: var(--primary-accent);
+  stroke-width: 2px;
+}

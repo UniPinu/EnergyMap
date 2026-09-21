@@ -23,7 +23,7 @@ export const CARD = { width: 172, height: 132 }
  * Card scale per cluster level: coarse levels carry few nodes and are viewed zoomed-out, so their
  * cards are drawn larger (information density scales with level, MVP.md §4.2).
  */
-export const CARD_SCALE: Record<number, number> = { 0: 20, 1: 6, 2: 1 }
+export const CARD_SCALE: Record<number, number> = { 0: 14, 1: 4, 2: 1 }
 export const cardScale = (level: number) => CARD_SCALE[level] ?? 1
 
 type Loaded = { state: 'loading' } | { state: 'ready'; topology: Topology } | { state: 'error'; message: string }

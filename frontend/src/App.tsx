@@ -6,6 +6,7 @@ import { useUi } from '@/store/ui'
 import { GridCanvas } from '@/canvas/GridCanvas'
 import { Sidebar } from '@/sidebar/Sidebar'
 import { startStatePolling, useLive } from '@/store/live'
+import { ResidualGauge } from '@/map/ResidualGauge'
 import './app.css'
 
 type Status = { kind: 'loading' } | { kind: 'ok'; health: Health } | { kind: 'error'; message: string }
@@ -43,10 +44,11 @@ export default function App() {
       <header className="emap-appbar">
         <Zap className="emap-appbar__logo" strokeWidth={1.5} aria-hidden />
         <h1 className="emap-appbar__title">
-          Northern European Electricity Balance Terminal<em>phase 2 · DK live</em>
+          Northern European Electricity Balance Terminal<em>phase 3 · balance · LOD</em>
         </h1>
         <div className="emap-appbar__right">
           <StatusLine status={status} />
+          <ResidualGauge />
           <NodeTypeLegend />
         </div>
       </header>
@@ -78,7 +80,6 @@ function StatusLine({ status }: { status: Status }) {
     <span className="emap-appbar__status" data-testid="live-status">
       <b>●</b> {state.t_utc.slice(0, 16).replace('T', ' ')}Z · DK1 {dk1?.live ? 'live' : 'no data'}
       {dk1?.live && dk1.p_gen != null ? ` · gen ${Math.round(dk1.p_gen)} MW · load ${dk1.demand == null ? '—' : Math.round(dk1.demand) + ' MW'}` : ''}
-      {dk1?.residual_hat != null ? ` · r̂ ${(dk1.residual_hat * 100).toFixed(1)}%` : ''}
       {selectedId ? ` · selected ${selectedId}` : ''}
     </span>
   )

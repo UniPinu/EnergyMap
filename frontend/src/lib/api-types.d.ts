@@ -221,6 +221,8 @@ export type components = {
         EdgeState: {
             /** Flow */
             flow?: number | null;
+            /** Flow Raw */
+            flow_raw?: number | null;
             /** Id */
             id: string;
             /** Loading */
@@ -405,6 +407,34 @@ export type components = {
             u?: number | null;
         };
         /**
+         * ReconciledZone
+         * @description n* = argmin ‖W^{1/2}(n − ñ)‖² s.t. the zone identity closes (MVP.md §3.4).
+         */
+        ReconciledZone: {
+            /** Adjustments */
+            adjustments: {
+                [key: string]: number;
+            };
+            /** By Class */
+            by_class: {
+                [key: string]: number;
+            };
+            /** Demand */
+            demand: number;
+            /** Exchange */
+            exchange: number;
+            /** Flows */
+            flows: {
+                [key: string]: number;
+            };
+            /** P Gen */
+            p_gen: number;
+            /** Weights */
+            weights: {
+                [key: string]: number;
+            };
+        };
+        /**
          * Sample
          * @description One observation on the canonical time grid.
          *
@@ -430,7 +460,7 @@ export type components = {
              * Quantity
              * @enum {string}
              */
-            quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "co2_intensity";
+            quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "residual_hat" | "co2_intensity";
             /**
              * Resolution
              * @enum {string}
@@ -481,7 +511,7 @@ export type components = {
              * Quantity
              * @enum {string}
              */
-            quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "co2_intensity";
+            quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "residual_hat" | "co2_intensity";
             /**
              * Unit
              * @enum {string}
@@ -631,6 +661,7 @@ export type components = {
             p_gen?: number | null;
             /** Price */
             price?: number | null;
+            reconciled?: components["schemas"]["ReconciledZone"] | null;
             /** Residual */
             residual?: number | null;
             /** Residual Hat */
@@ -669,7 +700,7 @@ export interface operations {
         parameters: {
             query: {
                 entity_id: string;
-                quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "co2_intensity";
+                quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "residual_hat" | "co2_intensity";
                 start?: string | null;
                 end?: string | null;
                 source?: ("energinet" | "entsoe" | "pypsa" | "derived") | null;
@@ -704,7 +735,7 @@ export interface operations {
         parameters: {
             query: {
                 entity_id: string;
-                quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "co2_intensity";
+                quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "residual_hat" | "co2_intensity";
                 start?: string | null;
                 end?: string | null;
             };

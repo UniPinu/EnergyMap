@@ -1,0 +1,59 @@
+.emap-gauge {
+  display: grid;
+  grid-auto-flow: column;
+  gap: var(--spacing-3);
+  align-items: center;
+  font-family: var(--code-font);
+  font-size: var(--font-size-2);
+  color: var(--overlay-60);
+}
+.emap-gauge__title {
+  font-family: var(--main-font);
+  font-size: var(--font-size-3);
+  color: var(--overlay-40);
+}
+.emap-gauge__zone {
+  display: grid;
+  grid-auto-flow: column;
+  gap: var(--spacing-1half);
+  align-items: center;
+}
+.emap-gauge__bar {
+  position: relative;
+  width: 64px;
+  height: 6px;
+  overflow: hidden;
+  background: var(--overlay-10);
+  border-radius: var(--border-radius-full);
+}
+.emap-gauge__bar::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  content: '';
+  background: var(--overlay-30);
+}
+.emap-gauge__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: currentColor;
+}
+.emap-gauge__bar.emap-chor-0,
+.emap-gauge__bar.emap-chor-1 {
+  color: var(--primary-accent);
+}
+.emap-gauge__bar.emap-chor-2,
+.emap-gauge__bar.emap-chor-3 {
+  color: var(--severity-warning-100);
+}
+.emap-gauge__bar.emap-chor-4 {
+  color: var(--danger-default);
+}
+.emap-gauge__value {
+  min-width: 5.5ch;
+  color: var(--global-foreground);
+  text-align: right;
+}

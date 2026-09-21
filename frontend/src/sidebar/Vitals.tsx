@@ -57,20 +57,47 @@ export function ClusterVitals({ c, p }: { c: ClusterNode; p?: ClusterState }) {
   )
 }
 
-/** Zone totals and the raw residual r = Σgen − Σload − X (MVP.md §3.4) — never hidden. */
+/** Zone totals, the raw residual r = Σgen − Σload − X and the reconciled state (MVP.md §3.4). */
 export function ZoneBalance({ z }: { z?: ZoneState }) {
   const held = z?.demand_age_min != null && z.demand_age_min >= 60 ? ` · held ${Math.round(z.demand_age_min)} min` : ''
+  const r = z?.reconciled
   return (
-    <Item
-      heading="raw measurements (reconciliation in Phase 3)"
-      rows={[
-        ['Σ gen', mw(z?.p_gen)],
-        ['Σ load', `${mw(z?.demand)}${held}`, held !== ''],
-        ['net export X', mw(z?.exchange)],
-        ['residual r', z?.residual == null ? '—' : `${mw(z.residual)} · ${pct(z.residual_hat)} of load`],
-        ['price', eur(z?.price)],
-        ['CO₂', z?.co2_intensity == null ? '—' : `${Math.round(z.co2_intensity * 1000)} g/kWh`],
-      ]}
-    />
+    <>
+      <Item
+        heading="raw measurements"
+        rows={[
+          ['Σ gen', mw(z?.p_gen)],
+          ['Σ load', `${mw(z?.demand)}${held}`, held !== ''],
+          ['net export X', mw(z?.exchange)],
+          ['residual r', z?.residual == null ? '—' : `${mw(z.residual)} · ${pct(z.residual_hat)} of load`, z?.residual == null],
+          ['price', eur(z?.price)],
+          ['CO₂', z?.co2_intensity == null ? '—' : `${Math.round(z.co2_intensity * 1000)} g/kWh`],
+        ]}
+      />
+      <Item
+        heading="reconciled state n* (weighted projection, Σ = 0)"
+        rows={
+          r
+            ? [
+                ['Σ gen*', `${mw(r.p_gen)} · Δ ${signed(sumClassAdjustments(r.adjustments))} MW`],
+                ['Σ load*', `${mw(r.demand)} · Δ ${signed(r.adjustments['demand'])} MW`],
+                ['net export X*', mw(r.exchange)],
+                ['gen* − load* − X*', mw(r.p_gen - r.demand - r.exchange, 3)],
+                ['trust w · flow / gen / load', `${weightOf(r.weights, 'flow:')} / ${weightOf(r.weights, 'class:')} / ${weightOf(r.weights, 'demand')}`],
+              ]
+            : [['state', 'identity cannot be formed (missing gen, load or a corridor flow)', true]]
+        }
+      />
+    </>
   )
+}
+
+const signed = (v: number | undefined) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${Math.round(v)}`)
+const sumClassAdjustments = (adj: Record<string, number>) =>
+  Object.entries(adj)
+    .filter(([k]) => k.startsWith('class:'))
+    .reduce((a, [, v]) => a + v, 0)
+const weightOf = (w: Record<string, number>, prefix: string) => {
+  const k = Object.keys(w).find((x) => x.startsWith(prefix))
+  return k ? String(w[k]) : '—'
 }
