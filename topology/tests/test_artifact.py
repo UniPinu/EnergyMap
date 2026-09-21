@@ -135,5 +135,7 @@ def test_every_dk_bus_has_load_and_dg_satellites(doc):
             bus = n["id"].removeprefix("bus:")
             assert f"load:{bus}" in ids and f"dg:{bus}" in ids
     # Copenhagen-area buses carry the largest DK2 keys; the biggest single key is < 30 %
-    keys = [n["dist_key"] for n in doc["nodes"] if n["kind"] == "consumption" and n["zone"] == "DK2"]
+    keys = [
+        n["dist_key"] for n in doc["nodes"] if n["kind"] == "consumption" and n["zone"] == "DK2"
+    ]
     assert 0.1 < max(keys) < 0.3

@@ -16,7 +16,7 @@ Authoritative documents (read in this order):
 | 0 | Foundations — repo, stack, canonical `Sample` schema, projection helper | ✅ built |
 | 1 | Skeleton topology (PyPSA-Eur → React Flow) | ✅ built |
 | 2 | DK live data + sidebar (Energinet) | ✅ built |
-| 3 | Balance, residual & LOD | ⏳ |
+| 3 | Balance, residual & LOD | ✅ built |
 | 4 | Neighbours + strain + calendar (ENTSO-E) | ⏳ |
 | 5 | Provenance (Bialek tracing) | ⏳ |
 
@@ -61,6 +61,7 @@ per source update frequency with a dynamic window, never from the browser.
 - `http://127.0.0.1:8000/api/state` — per-node state vectors (§3.2), corridor flows, zone
   totals with the raw residual, cluster sums; `?t=` for a past instant (UTC ISO)
 - `http://127.0.0.1:8000/api/series?entity_id=DK1&quantity=demand` — canonical or derived series
+  (`quantity=residual` / `residual_hat` for the derived closure history)
 - `http://127.0.0.1:8000/api/ingest/status` — last run / rows / error per ingestion job
 
 Run **one** uvicorn worker (the default): DuckDB is single-writer and the scheduled ingesters
@@ -78,13 +79,16 @@ Open the URL Vite prints (default `http://localhost:5173`). If Vite picks anothe
 to `EMAP_CORS_ORIGINS` in `.env` and restart the backend. The footer shows the backend status
 read from `/health`.
 
-What you see (Phase 2): the Northern-Europe network at cluster level **Π₀** (19 bidding-zone
-super-nodes); DK1/DK2 carry live numbers, neighbours show "—" until Phase 4. Switch levels with
-the header buttons: **Π₁** (k-means bus clusters inside DK1/DK2) and **Π₂** (every DK bus, plant,
-load, distributed-generation and storage node). Node faces show the three headline statistics
-of their kind from the live state (a ◌ marks a held value). Click a node: the sidebar shows its
-vitals, the zone's raw balance **with the reconciliation residual**, and shadcn charts
-(24h / week / month, switched client-side). The browser polls only this backend.
+What you see (Phase 3): the open view is the **zonal summary** — a shadcn-maps choropleth of
+the bidding zones tinted by the reconciliation residual r̂, with one super-node card per zone
+(DK1/DK2 live, neighbours "—" until Phase 4). **Zoom drives the level** (MVP §4.2): Π₀ zones →
+Π₁ k-means bus clusters inside DK → Π₂ every DK bus, plant, load, distributed-generation and
+storage node, always within the 400-node render budget (the toolbar shows mounted/budget; the
+level buttons zoom to a level's band). Node faces show the three headline statistics of their
+kind from the *reconciled* live state (◌ = held value). The app bar carries the **residual
+gauge** (r̂ per DK zone); the sidebar shows vitals, the zone's raw measurements, the raw
+residual, the reconciled state with its adjustments, and shadcn charts (24h / week / month).
+The browser polls only this backend.
 
 ### 3. Verify
 
@@ -161,6 +165,22 @@ is a *disaggregation* of a zonal measurement, balance-preserving by construction
   flow in the MVP) and stay unrated on the canvas.
 - **Demand lag.** Load is hourly and ~2 h behind production; the state carries the last
   published hour forward, flags it `estimated`, and the residual shows the gap honestly.
+
+## Balance and reconciliation (Phase 3, MVP.md §3.4)
+
+- **Identity.** Per DK zone, gen − load − X must close (KCL at the zone; `analytics/balance.py`
+  also carries the general incidence matrix `A` and `A·F − n` for any graph).
+- **Residual.** r = Σgen − Σload − X on the raw measurements, r̂ = r / Σload. Shown in the app
+  bar gauge and the sidebar, stored as `derived` samples (`residual`, `residual_hat`) for every
+  5-min instant at which all inputs exist — never a fabricated 0 when they don't.
+- **Reconciliation.** Weighted projection onto the constraint, closed form
+  x* = x̃ − W⁻¹a(aᵀx̃)/(aᵀW⁻¹a), with trust weights metered flows 4 (held 1) > 5-min production
+  1 (held 0.5) > lagged load 0.5 (held 0.1). The node faces show the reconciled state; the
+  sidebar shows each term's adjustment. Full WLS state estimation stays post-MVP.
+- **LOD.** ℓ*(z) thresholds 0 / 0.08 / 0.28 with ±12 % hysteresis; render set = level nodes
+  intersecting the viewport; demote until ≤ 400 mounted. One 36k-px world for all levels so a
+  level switch never moves the viewport. Choropleth = authored bidding-zone map-data
+  (`topology/emap_topology/mapdata.py`, entsoe-py polygons + Bornholm) in canvas coordinates.
 
 ## Decisions
 
