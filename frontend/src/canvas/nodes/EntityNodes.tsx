@@ -2,15 +2,16 @@ import { memo } from 'react'
 import type { NodeProps } from '@xyflow/react'
 import type { ConsumptionFlowNode, GridFlowNode, SourceFlowNode, StorageFlowNode } from '@/canvas/types'
 import { NodeShell } from './NodeShell'
+import { mw, pct, sign, signedPct } from './format'
 import { fmtMw } from './style'
 
 /**
  * The four typed nodes (MVP.md §3.2). Each face shows the three headline statistics of its
- * kind; until live data arrives (Phase 2) the measured values render as "—" while the static
- * quantities (nameplate, E_max, voltage) come from the topology.
+ * kind from the live state vector; anything the backend does not know renders as "—".
  */
 
 export const SourceNode = memo(function SourceNode({ data, selected }: NodeProps<SourceFlowNode>) {
+  const s = data.stats
   return (
     <NodeShell
       kind="source"
@@ -19,16 +20,18 @@ export const SourceNode = memo(function SourceNode({ data, selected }: NodeProps
       selected={!!selected}
       related={data.related}
       scale={data.scale}
+      stale={s?.quality === 'estimated'}
       rows={[
-        { label: 'P_gen', value: fmtMw(null) },
-        { label: 'u', value: data.capacityMw ? `— / ${fmtMw(data.capacityMw)}` : '—' },
-        { label: 'δ 1h', value: '—' },
+        { label: 'P_gen', value: mw(s?.p_gen) },
+        { label: 'u', value: data.capacityMw ? `${pct(s?.u)} of ${fmtMw(data.capacityMw)}` : pct(s?.u) },
+        { label: 'δ 1h', value: signedPct(s?.delta_1h) },
       ]}
     />
   )
 })
 
 export const GridNode = memo(function GridNode({ data, selected }: NodeProps<GridFlowNode>) {
+  const s = data.stats
   return (
     <NodeShell
       kind="grid"
@@ -37,16 +40,18 @@ export const GridNode = memo(function GridNode({ data, selected }: NodeProps<Gri
       selected={!!selected}
       related={data.related}
       scale={data.scale}
+      stale={s?.quality === 'estimated'}
       rows={[
-        { label: 'T', value: fmtMw(null) },
-        { label: 'λ', value: '—' },
-        { label: 'sgn n', value: '—' },
+        { label: 'T', value: mw(s?.t_flow) },
+        { label: 'λ', value: pct(s?.loading) },
+        { label: 'sgn n', value: sign(s?.net_injection) },
       ]}
     />
   )
 })
 
 export const ConsumptionNode = memo(function ConsumptionNode({ data, selected }: NodeProps<ConsumptionFlowNode>) {
+  const s = data.stats
   return (
     <NodeShell
       kind="consumption"
@@ -55,16 +60,18 @@ export const ConsumptionNode = memo(function ConsumptionNode({ data, selected }:
       selected={!!selected}
       related={data.related}
       scale={data.scale}
+      stale={s?.quality === 'estimated'}
       rows={[
-        { label: 'D', value: fmtMw(null) },
-        { label: 'ρ', value: '—' },
-        { label: 'δ 1h', value: '—' },
+        { label: 'D', value: mw(s?.demand) },
+        { label: 'ρ', value: pct(s?.rho) },
+        { label: 'δ 1h', value: signedPct(s?.delta_1h) },
       ]}
     />
   )
 })
 
 export const StorageNode = memo(function StorageNode({ data, selected }: NodeProps<StorageFlowNode>) {
+  const s = data.stats
   return (
     <NodeShell
       kind="storage"
@@ -74,9 +81,9 @@ export const StorageNode = memo(function StorageNode({ data, selected }: NodePro
       related={data.related}
       scale={data.scale}
       rows={[
-        { label: 'P', value: data.capacityMw ? `— / ${fmtMw(data.capacityMw)}` : '—' },
-        { label: 'SoC', value: data.energyMwh ? `— / ${fmtMw(data.energyMwh, 'MWh')}` : '—' },
-        { label: 'dur', value: '—' },
+        { label: 'P', value: data.capacityMw ? `${mw(s?.p_store)} / ${fmtMw(data.capacityMw)}` : mw(s?.p_store) },
+        { label: 'SoC', value: data.energyMwh ? `${pct(s?.soc)} of ${fmtMw(data.energyMwh, 'MWh')}` : pct(s?.soc) },
+        { label: 'dur', value: s?.duration_h == null ? '—' : `${s.duration_h.toFixed(1)} h` },
       ]}
     />
   )

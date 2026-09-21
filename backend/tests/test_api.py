@@ -18,7 +18,7 @@ T0 = datetime(2026, 9, 21, 10, 0, tzinfo=UTC)
 
 @pytest.fixture
 def client(store: Store):
-    app = create_app(settings=Settings(_env_file=None), store=store)
+    app = create_app(settings=Settings(_env_file=None, emap_ingest_enabled=False), store=store)
     with TestClient(app) as c:
         yield c
 

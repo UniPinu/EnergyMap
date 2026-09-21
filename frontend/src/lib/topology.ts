@@ -3,7 +3,7 @@
  * Positions come ONLY from the shared projection of (lat, lon) (MVP.md §8); nodes are immovable.
  */
 import { useEffect, useState } from 'react'
-import { api, type Topology } from '@/lib/api'
+import { api, type State, type Topology } from '@/lib/api'
 import { NORTHERN_EUROPE_BOUNDS, fitBounds, type Projection } from '@/lib/projection'
 import type { AnyFlowNode, CorridorEdge, Side } from '@/canvas/types'
 import { sourceHandle, targetHandle } from '@/canvas/types'
@@ -161,4 +161,23 @@ export function buildFlow(topology: Topology, level: number): FlowGraph {
     }
   })
   return { nodes, edges, adjacency }
+}
+
+/**
+ * Overlay a live /api/state snapshot onto a built graph. Nodes/edges the state knows nothing
+ * about keep their object identity, so React Flow's memoized components skip them.
+ */
+export function applyState(graph: FlowGraph, state: State | null): FlowGraph {
+  if (!state) return graph
+  const nodes = graph.nodes.map((n) => {
+    const stats = n.type === 'cluster' ? state.clusters[String(n.data.level)]?.[n.id] : state.nodes[n.id]
+    if (!stats) return n
+    return { ...n, data: { ...n.data, stats } } as AnyFlowNode
+  })
+  const edges = graph.edges.map((e) => {
+    const es = state.edges[e.id]
+    if (!es) return e
+    return { ...e, data: { ...e.data!, flow: es.flow, loading: es.loading } }
+  })
+  return { nodes, edges, adjacency: graph.adjacency }
 }

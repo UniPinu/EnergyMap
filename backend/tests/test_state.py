@@ -1,4 +1,4 @@
-"""compute_state on a synthetic sample set: distribution, δ(1h), freshness, zone totals, residual."""
+"""compute_state on synthetic samples: distribution, δ(1h), freshness, zone totals, residual."""
 
 from __future__ import annotations
 
@@ -62,8 +62,9 @@ def test_latest_freshness_flags(store: Store, topo):
         assert v == 3700.0 and q == "estimated" and age == 20.0
         assert latest(cur, "DK1", "p_gen", T + timedelta(hours=3))[1] == "missing"
         assert latest(cur, "DK2", "p_gen", T) == (None, "missing", None)
-        # demand is hourly: held for 59 min is still its native window
-        assert latest(cur, "DK1", "demand", T + timedelta(minutes=55))[1] == "measured"
+        # hourly demand is expanded onto the grid at ingest, so any positive age is a hold
+        assert latest(cur, "DK1", "demand", T + timedelta(minutes=55))[1] == "estimated"
+        assert latest(cur, "DK1", "demand", T)[1] == "measured"
 
 
 def test_state_distributes_and_conserves(store: Store, topo):

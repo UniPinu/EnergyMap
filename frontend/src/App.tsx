@@ -3,6 +3,8 @@ import { API_BASE, api, type Health } from '@/lib/api'
 import { useTopology } from '@/lib/topology'
 import { useUi } from '@/store/ui'
 import { GridCanvas } from '@/canvas/GridCanvas'
+import { Sidebar } from '@/sidebar/Sidebar'
+import { startStatePolling, useLive } from '@/store/live'
 import { cn } from '@/lib/utils'
 
 type Status = { kind: 'loading' } | { kind: 'ok'; health: Health } | { kind: 'error'; message: string }
@@ -14,6 +16,9 @@ type Status = { kind: 'loading' } | { kind: 'ok'; health: Health } | { kind: 'er
 export default function App() {
   const [status, setStatus] = useState<Status>({ kind: 'loading' })
   const topo = useTopology()
+
+  // Live state: the browser polls only service B (never Energinet), once a minute.
+  useEffect(() => startStatePolling(60_000), [])
 
   useEffect(() => {
     let cancelled = false
@@ -37,7 +42,7 @@ export default function App() {
       <header className="flex items-center justify-between gap-4 border-b px-4 py-2">
         <div className="flex items-baseline gap-3">
           <h1 className="text-sm font-semibold tracking-tight">Northern European Electricity Balance Terminal</h1>
-          <span className="text-xs text-muted-foreground">phase 1 — skeleton topology</span>
+          <span className="text-xs text-muted-foreground">phase 2 — DK live</span>
         </div>
         <div className="flex items-center gap-4">
           {topo.state === 'ready' && <LevelSwitch levels={topo.topology.meta.levels} />}
@@ -49,12 +54,13 @@ export default function App() {
         {topo.state === 'loading' && <Center>loading topology…</Center>}
         {topo.state === 'error' && <Center className="text-destructive">topology unavailable: {topo.message}</Center>}
         {topo.state === 'ready' && <GridCanvas topology={topo.topology} />}
-        {topo.state === 'ready' && <SelectionReadout />}
+        {topo.state === 'ready' && <Sidebar topology={topo.topology} />}
       </main>
 
       <footer className="flex items-center gap-4 border-t px-4 py-1.5 font-mono text-[11px] text-muted-foreground">
         <span>api {API_BASE}</span>
         <BackendStatus status={status} />
+        <LiveStatus />
         {topo.state === 'ready' && (
           <span className="ml-auto">
             topology {topo.topology.nodes.length} nodes · {topo.topology.edges.length} edges · built {topo.topology.meta.built_at_utc}
@@ -94,13 +100,20 @@ function LevelSwitch({ levels }: { levels: Array<{ level: number; name: string; 
   )
 }
 
-function SelectionReadout() {
+function LiveStatus() {
+  const state = useLive((s) => s.state)
+  const error = useLive((s) => s.error)
   const selectedId = useUi((s) => s.selectedId)
-  if (!selectedId) return null
+  if (error && !state) return <span className="text-destructive">state: unavailable ({error})</span>
+  if (!state) return <span>state: loading…</span>
+  const dk1 = state.zones['DK1']
   return (
-    <div className="pointer-events-none absolute left-3 top-3 rounded border bg-card/90 px-2 py-1 font-mono text-[11px]">
-      selected <span className="text-primary">{selectedId}</span>
-    </div>
+    <span data-testid="live-status">
+      state @ {state.t_utc.slice(0, 16).replace('T', ' ')}Z · DK1 {dk1?.live ? 'live' : 'no data'}
+      {dk1?.live && dk1.p_gen != null ? ` · gen ${Math.round(dk1.p_gen)} MW · load ${dk1.demand == null ? '—' : Math.round(dk1.demand) + ' MW'}` : ''}
+      {dk1?.residual_hat != null ? ` · r̂ ${(dk1.residual_hat * 100).toFixed(1)}%` : ''}
+      {selectedId ? ` · selected ${selectedId}` : ''}
+    </span>
   )
 }
 

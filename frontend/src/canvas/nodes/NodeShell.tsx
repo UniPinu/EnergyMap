@@ -44,6 +44,7 @@ export function NodeShell({
   selected,
   related,
   scale = 1,
+  stale = false,
   children,
 }: {
   kind: NodeKind | 'cluster'
@@ -54,6 +55,8 @@ export function NodeShell({
   related: boolean
   /** CSS zoom applied to the whole card (coarse levels draw larger cards). */
   scale?: number
+  /** primary statistic is a held / carried-forward value, not a fresh measurement */
+  stale?: boolean
   children?: ReactNode
 }) {
   const a = ACCENT[kind]
@@ -75,6 +78,11 @@ export function NodeShell({
           {title}
         </span>
         {subtitle && <span className="ml-auto shrink-0 text-muted-foreground">{subtitle}</span>}
+        {stale && (
+          <span className="shrink-0 text-muted-foreground" title="held value (source lag)">
+            ◌
+          </span>
+        )}
       </div>
       <div className="space-y-px px-1.5 py-1 font-mono">
         {rows.map((r) => (

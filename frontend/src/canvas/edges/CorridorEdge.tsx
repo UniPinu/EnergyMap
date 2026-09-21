@@ -14,9 +14,19 @@ const STROKE: Record<EdgeKind, string> = {
   interconnector: 'var(--node-consumption)',
 }
 
-function width(ratingMw: number | null): number {
-  if (ratingMw == null || ratingMw <= 0) return 1
-  return Math.min(8, 1 + Math.log10(ratingMw) * 1.2)
+/** Thickness ∝ |F_e| when a flow is measured (MVP.md §8), else ∝ rating (structural). */
+function width(flow: number | null | undefined, ratingMw: number | null): number {
+  const mwv = flow != null ? Math.abs(flow) : ratingMw
+  if (mwv == null || mwv <= 0) return 1
+  return Math.min(8, 1 + Math.log10(mwv) * 1.2)
+}
+
+/** Tint ∝ loading ℓ_e: kind colour below 60 %, amber toward 90 %, red above. */
+function loadingStroke(kind: EdgeKind, loading: number | null | undefined): string {
+  if (loading == null) return STROKE[kind]
+  if (loading >= 0.9) return 'var(--destructive)'
+  if (loading >= 0.6) return 'var(--node-consumption)'
+  return STROKE[kind]
 }
 
 export const CorridorEdgeView = memo(function CorridorEdgeView({
@@ -36,10 +46,10 @@ export const CorridorEdgeView = memo(function CorridorEdgeView({
     <BaseEdge
       path={path}
       style={{
-        stroke: highlighted ? 'var(--ring)' : STROKE[kind],
-        strokeWidth: width(data?.ratingMw ?? null) * (highlighted ? 1.5 : 1),
+        stroke: highlighted ? 'var(--ring)' : loadingStroke(kind, data?.loading),
+        strokeWidth: width(data?.flow, data?.ratingMw ?? null) * (highlighted ? 1.5 : 1),
         strokeDasharray: kind === 'hvdc_link' || kind === 'interconnector' ? '6 4' : undefined,
-        opacity: dimmed ? 0.12 : highlighted ? 1 : 0.55,
+        opacity: dimmed ? 0.12 : highlighted ? 1 : data?.flow != null ? 0.85 : 0.45,
       }}
     />
   )

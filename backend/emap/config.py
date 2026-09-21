@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     emap_port: int = 8000
     emap_cors_origins: str = "http://localhost:5173"
 
+    # Ingestion: scheduled server-side pulls (never from the browser). Off in tests.
+    emap_ingest_enabled: bool = True
+
     # ENTSO-E token: human-obtained by email (~3 working days). Empty until granted.
     entsoe_token: str = ""
 

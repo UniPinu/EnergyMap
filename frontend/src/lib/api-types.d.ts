@@ -2,6 +2,26 @@
 // Regenerate with `npm run gen:api` (frontend/).
 
 export type paths = {
+    "/api/ingest/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ingest Status
+         * @description Last run / rows / error per scheduled ingestion job.
+         */
+        get: operations["ingest_status_api_ingest_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/samples": {
         parameters: {
             query?: never;
@@ -14,6 +34,48 @@ export type paths = {
          * @description Canonical `Sample` rows for one (entity, quantity) in [start, end). Default: last 24h.
          */
         get: operations["samples_api_samples_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Series
+         * @description Time series for any entity: stored rows for zones / classes / corridors, derived
+         *     (distribution rule) for DK plant, dg and load nodes. Default window: last 31 days.
+         */
+        get: operations["get_series_api_series_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get State
+         * @description Per-node state vectors (MVP.md §3.2), corridor flows, zone totals + raw residual and
+         *     cluster aggregates at instant t (default: now, floored to the 5-min grid).
+         */
+        get: operations["get_state_api_state_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -109,6 +171,24 @@ export type components = {
             /** Zone */
             zone: string;
         };
+        /** ClusterState */
+        ClusterState: {
+            /** Demand */
+            demand?: number | null;
+            /** Id */
+            id: string;
+            /** Level */
+            level: number;
+            /** Net Injection */
+            net_injection?: number | null;
+            /** P Gen */
+            p_gen?: number | null;
+            /**
+             * Quality
+             * @enum {string}
+             */
+            quality: "measured" | "interpolated" | "estimated" | "missing";
+        };
         /** DbHealth */
         DbHealth: {
             /** Migrations */
@@ -137,6 +217,20 @@ export type components = {
             /** To */
             to: string;
         };
+        /** EdgeState */
+        EdgeState: {
+            /** Flow */
+            flow?: number | null;
+            /** Id */
+            id: string;
+            /** Loading */
+            loading?: number | null;
+            /**
+             * Quality
+             * @enum {string}
+             */
+            quality: "measured" | "interpolated" | "estimated" | "missing";
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -154,6 +248,36 @@ export type components = {
             time_utc: string;
             /** Version */
             version: string;
+        };
+        /** JobStatus */
+        JobStatus: {
+            /** Dataset */
+            dataset: string;
+            /**
+             * Failures
+             * @default 0
+             */
+            failures: number;
+            /** Interval S */
+            interval_s: number;
+            /** Last Error */
+            last_error?: string | null;
+            /** Last Ok Utc */
+            last_ok_utc?: string | null;
+            /**
+             * Last Rows
+             * @default 0
+             */
+            last_rows: number;
+            /** Last Started Utc */
+            last_started_utc?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Runs
+             * @default 0
+             */
+            runs: number;
         };
         /** LevelInfo */
         LevelInfo: {
@@ -203,6 +327,11 @@ export type components = {
              */
             co2_intensity?: number | null;
             /**
+             * Dist Key
+             * @description share of the zone aggregate this node receives (bus->zone rule, Phase 2)
+             */
+            dist_key?: number | null;
+            /**
              * Energy Mwh
              * @description storage E_max (MWh)
              */
@@ -236,6 +365,45 @@ export type components = {
              */
             zone: string;
         };
+        /** NodeState */
+        NodeState: {
+            /** Delta 1H */
+            delta_1h?: number | null;
+            /** Demand */
+            demand?: number | null;
+            /** Duration H */
+            duration_h?: number | null;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "source" | "grid" | "consumption" | "storage";
+            /** Loading */
+            loading?: number | null;
+            /** Net Injection */
+            net_injection?: number | null;
+            /** Net Sign */
+            net_sign?: number | null;
+            /** P Gen */
+            p_gen?: number | null;
+            /** P Store */
+            p_store?: number | null;
+            /**
+             * Quality
+             * @enum {string}
+             */
+            quality: "measured" | "interpolated" | "estimated" | "missing";
+            /** Rho */
+            rho?: number | null;
+            /** Soc */
+            soc?: number | null;
+            /** T Flow */
+            t_flow?: number | null;
+            /** U */
+            u?: number | null;
+        };
         /**
          * Sample
          * @description One observation on the canonical time grid.
@@ -262,7 +430,7 @@ export type components = {
              * Quantity
              * @enum {string}
              */
-            quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual";
+            quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "co2_intensity";
             /**
              * Resolution
              * @enum {string}
@@ -282,9 +450,80 @@ export type components = {
              * Unit
              * @enum {string}
              */
-            unit: "MW" | "MWh" | "EUR/MWh" | "ratio";
+            unit: "MW" | "MWh" | "EUR/MWh" | "ratio" | "tCO2/MWh";
             /** Value */
             value: number | null;
+        };
+        /** SeriesPoint */
+        SeriesPoint: {
+            /**
+             * Q
+             * @enum {string}
+             */
+            q: "measured" | "interpolated" | "estimated" | "missing";
+            /**
+             * T
+             * Format: date-time
+             */
+            t: string;
+            /** V */
+            v: number;
+        };
+        /** SeriesResponse */
+        SeriesResponse: {
+            /** Derived From */
+            derived_from?: string | null;
+            /** Entity Id */
+            entity_id: string;
+            /** Points */
+            points: components["schemas"]["SeriesPoint"][];
+            /**
+             * Quantity
+             * @enum {string}
+             */
+            quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "co2_intensity";
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "MW" | "MWh" | "EUR/MWh" | "ratio" | "tCO2/MWh";
+        };
+        /** State */
+        State: {
+            /** Clusters */
+            clusters: {
+                [key: string]: {
+                    [key: string]: components["schemas"]["ClusterState"];
+                };
+            };
+            /**
+             * Computed At Utc
+             * Format: date-time
+             */
+            computed_at_utc: string;
+            /** Edges */
+            edges: {
+                [key: string]: components["schemas"]["EdgeState"];
+            };
+            /** Nodes */
+            nodes: {
+                [key: string]: components["schemas"]["NodeState"];
+            };
+            /**
+             * Step
+             * @default PT5M
+             * @constant
+             */
+            step: "PT5M";
+            /**
+             * T Utc
+             * Format: date-time
+             */
+            t_utc: string;
+            /** Zones */
+            zones: {
+                [key: string]: components["schemas"]["ZoneState"];
+            };
         };
         /** Topology */
         Topology: {
@@ -294,6 +533,12 @@ export type components = {
             };
             /** Edges */
             edges: components["schemas"]["Edge"][];
+            /** Load Key Detail */
+            load_key_detail?: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
             meta: components["schemas"]["TopologyMeta"];
             /** Nodes */
             nodes: components["schemas"]["Node"][];
@@ -310,6 +555,10 @@ export type components = {
             builder: string;
             /** Built At Utc */
             built_at_utc: string;
+            /** Distribution Rule */
+            distribution_rule?: {
+                [key: string]: string;
+            };
             /** Finest Level */
             finest_level: number;
             /** Levels */
@@ -351,6 +600,42 @@ export type components = {
             /** Name */
             name: string;
         };
+        /** ZoneState */
+        ZoneState: {
+            /**
+             * By Class
+             * @default {}
+             */
+            by_class: {
+                [key: string]: number;
+            };
+            /** Co2 Intensity */
+            co2_intensity?: number | null;
+            /** Demand */
+            demand?: number | null;
+            /** Demand Age Min */
+            demand_age_min?: number | null;
+            /**
+             * Demand Quality
+             * @default missing
+             * @enum {string}
+             */
+            demand_quality: "measured" | "interpolated" | "estimated" | "missing";
+            /** Exchange */
+            exchange?: number | null;
+            /** Id */
+            id: string;
+            /** Live */
+            live: boolean;
+            /** P Gen */
+            p_gen?: number | null;
+            /** Price */
+            price?: number | null;
+            /** Residual */
+            residual?: number | null;
+            /** Residual Hat */
+            residual_hat?: number | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -360,11 +645,31 @@ export type components = {
 };
 export type $defs = Record<string, never>;
 export interface operations {
+    ingest_status_api_ingest_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobStatus"][];
+                };
+            };
+        };
+    };
     samples_api_samples_get: {
         parameters: {
             query: {
                 entity_id: string;
-                quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual";
+                quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "co2_intensity";
                 start?: string | null;
                 end?: string | null;
                 source?: ("energinet" | "entsoe" | "pypsa" | "derived") | null;
@@ -382,6 +687,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Sample"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_series_api_series_get: {
+        parameters: {
+            query: {
+                entity_id: string;
+                quantity: "p_gen" | "demand" | "flow" | "soc" | "price" | "strain" | "residual" | "co2_intensity";
+                start?: string | null;
+                end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeriesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_state_api_state_get: {
+        parameters: {
+            query?: {
+                t?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["State"];
                 };
             };
             /** @description Validation Error */

@@ -40,7 +40,9 @@ def test_integrity_validator_rejects_bad_partition(topo: Topology):
 
 
 def test_endpoint_serves_topology(store: Store, topo: Topology):
-    app = create_app(settings=Settings(_env_file=None), store=store, topology=topo)
+    app = create_app(
+        settings=Settings(_env_file=None, emap_ingest_enabled=False), store=store, topology=topo
+    )
     with TestClient(app) as c:
         r = c.get("/api/topology")
     assert r.status_code == 200

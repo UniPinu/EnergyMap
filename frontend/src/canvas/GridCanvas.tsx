@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react'
 import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, type NodeMouseHandler, type ReactFlowInstance } from '@xyflow/react'
 import type { Topology } from '@/lib/api'
-import { buildFlow } from '@/lib/topology'
+import { applyState, buildFlow } from '@/lib/topology'
+import { useLive } from '@/store/live'
 import { useUi } from '@/store/ui'
 import type { AnyFlowNode, CorridorEdge } from '@/canvas/types'
 import { CorridorEdgeView } from '@/canvas/edges/CorridorEdge'
@@ -39,7 +40,11 @@ export function GridCanvas({ topology }: { topology: Topology }) {
   const select = useUi((s) => s.select)
 
   // Structure for the level: built once per (topology, level).
-  const graph = useMemo(() => buildFlow(topology, level), [topology, level])
+  const structure = useMemo(() => buildFlow(topology, level), [topology, level])
+
+  // Live overlay (one /api/state poll per minute): nodes without any stats keep their identity.
+  const state = useLive((s) => s.state)
+  const graph = useMemo(() => applyState(structure, state), [structure, state])
 
   // Selection overlay: mark the selected node, its neighbours and incident corridors.
   const nodes = useMemo<AnyFlowNode[]>(() => {

@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react'
-import type { EdgeKind, NodeKind } from '@/lib/api'
+import type { ClusterState, EdgeKind, NodeKind, NodeState } from '@/lib/api'
 
 /** Data on a finest-level typed node. Live stats (Phase 2) are optional; `null` renders as "—". */
 export interface EntityData extends Record<string, unknown> {
@@ -14,6 +14,8 @@ export interface EntityData extends Record<string, unknown> {
   voltageKv: number | null
   /** true when the node is adjacent to the selected node (LIAM corridor highlight). */
   related: boolean
+  /** live state vector (MVP.md §3.2) or undefined when nothing is known for this node */
+  stats?: NodeState
 }
 
 /** Data on a cluster super-node (levels ℓ < L). */
@@ -26,6 +28,7 @@ export interface ClusterData extends Record<string, unknown> {
   sourceMw: number
   storageMw: number
   related: boolean
+  stats?: ClusterState
 }
 
 export interface CorridorData extends Record<string, unknown> {
@@ -37,6 +40,9 @@ export interface CorridorData extends Record<string, unknown> {
   highlighted: boolean
   /** some node is selected and this edge is not incident → dimmed */
   dimmed: boolean
+  /** signed live flow from→to (MW), when measured (corridors only until Phase 3) */
+  flow?: number | null
+  loading?: number | null
 }
 
 export type SourceFlowNode = Node<EntityData, 'source'>

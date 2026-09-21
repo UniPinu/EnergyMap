@@ -27,7 +27,8 @@ from emap.schema import Quality
 from emap.topology import Topology
 
 DK_ZONES = ("DK1", "DK2")
-NATIVE = {"p_gen": 5, "flow": 5, "co2_intensity": 5, "price": 15, "demand": 60}  # minutes
+# Natives are already expanded onto the 5-min grid, so a sample is fresh only when it exists at
+# t itself; anything older is a held value (`estimated`) until the horizon, then `missing`.
 HORIZON = {"p_gen": 60, "flow": 60, "co2_intensity": 60, "price": 60 * 26, "demand": 60 * 6}
 
 
@@ -46,7 +47,7 @@ def latest(
     age = (t - t_sample).total_seconds() / 60.0
     if age > HORIZON[quantity]:
         return None, "missing", age
-    if age >= NATIVE[quantity]:
+    if age > 0:
         return value, "estimated", age
     return value, q, age
 
@@ -86,10 +87,23 @@ def _sign(x: float) -> int:
     return 1 if x > 0 else -1 if x < 0 else 0
 
 
+def latest_snapshot_time(cur: duckdb.DuckDBPyConnection) -> datetime | None:
+    """Most recent grid instant with 5-min DK production data (the freshest complete slot)."""
+    row = cur.execute(
+        "SELECT max(t_utc) FROM samples WHERE quantity = 'p_gen' AND entity_id IN ('DK1', 'DK2') "
+        "AND t_utc <= ?",
+        [datetime.now(UTC)],
+    ).fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
 def compute_state(
     topology: Topology, cur: duckdb.DuckDBPyConnection, t: datetime | None = None
 ) -> State:
-    t = floor_to_grid((t or datetime.now(UTC)).astimezone(UTC))
+    if t is None:
+        # default = latest complete 5-min slot, so fresh measurements are not flagged as held
+        t = latest_snapshot_time(cur) or datetime.now(UTC)
+    t = floor_to_grid(t.astimezone(UTC))
     t_prev = t - timedelta(hours=1)
     nodes_by_id = topology.node_index()
     edges_by_id = {e.id: e for e in topology.edges}
