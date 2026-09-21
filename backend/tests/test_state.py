@@ -49,6 +49,9 @@ def seed(store: Store, topo) -> dict[str, str]:
         # exports 900 to DE, imports 400 from NO2 (flow signed DK bus -> hub: export positive)
         rows.append(_s(edges["DE_LU"], "flow", t, 900.0 * scale, kind="edge"))
         rows.append(_s(edges["NO2"], "flow", t, -400.0 * scale, kind="edge"))
+        for nb, eid in edges.items():  # the identity needs every corridor: the rest idle
+            if nb not in ("DE_LU", "NO2"):
+                rows.append(_s(eid, "flow", t, 0.0, kind="edge"))
     with store.cursor() as cur:
         upsert_samples(cur, rows)
     return edges
@@ -79,10 +82,23 @@ def test_state_distributes_and_conserves(store: Store, topo):
     assert z.residual_hat == pytest.approx(400.0 / 2800.0)
     assert z.price == 90.0 and z.co2_intensity == 0.06
     assert not st.zones["DK2"].live and st.zones["DK2"].residual is None
+    # the faces carry the *reconciled* state: the zone identity closes exactly on it
+    rec = z.reconciled
+    assert rec is not None
+    assert rec.p_gen - rec.demand - rec.exchange == pytest.approx(0.0, abs=1e-6)
+    # least-trusted term (held demand) moves most, metered flows least; raw totals untouched
+    assert abs(rec.adjustments["demand"]) > abs(rec.adjustments["class:wind_offshore"])
+    assert all(
+        abs(rec.adjustments[k]) < abs(rec.adjustments["demand"])
+        for k in rec.adjustments
+        if k.startswith("flow:")
+    )
     dk1 = [n for n in topo.nodes if n.zone == "DK1"]
     gen = sum(st.nodes[n.id].p_gen or 0.0 for n in dk1 if n.kind == "source" and n.id in st.nodes)
     dem = sum(st.nodes[n.id].demand or 0.0 for n in dk1 if n.kind == "consumption")
-    assert gen == pytest.approx(3700.0) and dem == pytest.approx(2800.0)
+    assert gen == pytest.approx(rec.p_gen) and dem == pytest.approx(rec.demand)
+    assert gen < 3700.0 and dem > 2800.0  # r > 0 closes by lowering gen and raising load
+
     # every plant respects nameplate; δ(1h) = +25 % for all distributed quantities (0.8 -> 1.0)
     for n in dk1:
         s = st.nodes.get(n.id)
@@ -92,9 +108,11 @@ def test_state_distributes_and_conserves(store: Store, topo):
             assert s.delta_1h == pytest.approx(0.25)
     # corridor edges carry the signed flows and a loading
     de = next(e for e in topo.edges if e.id == edges["DE_LU"])
-    assert st.edges[de.id].flow == 900.0
-    assert st.edges[de.id].loading == pytest.approx(900.0 / de.rating_mw)
-    assert st.edges[edges["NO2"]].flow == -400.0
+    assert st.edges[de.id].flow_raw == 900.0 and st.edges[de.id].flow == pytest.approx(
+        rec.flows[de.id]
+    )
+    assert st.edges[de.id].loading == pytest.approx(rec.flows[de.id] / de.rating_mw)
+    assert st.edges[edges["NO2"]].flow_raw == -400.0
     # DK2 nodes have no state at all (never zeros)
     assert all(
         nid not in st.nodes
@@ -102,12 +120,13 @@ def test_state_distributes_and_conserves(store: Store, topo):
     )
     # cluster aggregation reproduces the zone at Π₀
     c = st.clusters["0"]["DK1"]
-    assert c.p_gen == pytest.approx(3700.0) and c.demand == pytest.approx(2800.0)
-    assert c.net_injection == pytest.approx(900.0)
+    # Π₀ cluster sums reproduce the reconciled zone, and n_c = X (KCL closes at the zone)
+    assert c.p_gen == pytest.approx(rec.p_gen) and c.demand == pytest.approx(rec.demand)
+    assert c.net_injection == pytest.approx(rec.exchange)
     assert st.clusters["0"]["DK2"].quality == "missing"
     assert sum(
         (st.clusters["1"][cid].p_gen or 0.0) for cid in st.clusters["1"] if cid.startswith("DK1/")
-    ) == pytest.approx(3700.0)
+    ) == pytest.approx(rec.p_gen)
 
 
 def test_grid_bus_net_injection_and_corridor_throughflow(store: Store, topo):
@@ -117,6 +136,7 @@ def test_grid_bus_net_injection_and_corridor_throughflow(store: Store, topo):
     kasso = next(n for n in topo.nodes if n.name == "Kassø")
     s = st.nodes[kasso.id]
     assert s.net_injection is not None and s.net_sign in (-1, 0, 1)
-    assert s.t_flow == pytest.approx(0.5 * 900.0)  # only the DE corridor is known at Kassø
+    de_flow = st.zones["DK1"].reconciled.flows[edges["DE_LU"]]
+    assert s.t_flow == pytest.approx(0.5 * abs(de_flow))  # only the DE corridor is known at Kassø
     de_edge = edges["DE_LU"]
     assert de_edge.endswith("hub:DE_LU") and kasso.id in de_edge

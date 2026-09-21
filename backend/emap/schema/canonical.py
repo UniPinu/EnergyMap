@@ -27,7 +27,17 @@ EntityKind = Literal["node", "edge"]
 
 # §5.2 lists 'p_gen'|'demand'|'flow'|'soc'|'price'|'strain'|'residual'|...
 # The trailing '...' is realized by extending this Literal in later phases.
-Quantity = Literal["p_gen", "demand", "flow", "soc", "price", "strain", "residual", "co2_intensity"]
+Quantity = Literal[
+    "p_gen",
+    "demand",
+    "flow",
+    "soc",
+    "price",
+    "strain",
+    "residual",
+    "residual_hat",
+    "co2_intensity",
+]
 Unit = Literal["MW", "MWh", "EUR/MWh", "ratio", "tCO2/MWh"]
 Source = Literal["energinet", "entsoe", "pypsa", "derived"]
 Resolution = Literal["PT5M", "PT15M", "PT60M"]

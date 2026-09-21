@@ -21,6 +21,7 @@ from emap.analytics.distribution import (
     plan_zone,
 )
 from emap.analytics.models import ClusterState, EdgeState, NodeState, State, ZoneState
+from emap.analytics.reconcile_zone import reconcile_zone
 from emap.normalize.energinet import class_entity, corridor_map
 from emap.normalize.grid import floor_to_grid
 from emap.schema import Quality
@@ -131,32 +132,54 @@ def compute_state(
         now = ZoneRead(cur, zone, t, edges_of_zone[zone])
         prev = ZoneRead(cur, zone, t_prev, edges_of_zone[zone])
         plan = plans[zone]
-        gen_now = distribute_generation(plan, now.classes)
-        gen_prev = distribute_generation(plan, prev.classes)
-        dem_now = distribute_demand(plan, now.demand) if now.demand is not None else {}
-        dem_prev = distribute_demand(plan, prev.demand) if prev.demand is not None else {}
         gen_q: Quality = "measured" if now.classes else "missing"
+        # Reconcile the zone identity (gen − load − X = 0); the balanced state drives the faces,
+        # the raw residual stays visible. Both instants are reconciled so δ(1h) compares alike.
+        rec = reconcile_zone(
+            zone, now.classes, gen_q, now.demand, now.demand_q, now.flows, edges_by_id, nodes_by_id
+        )
+        rec_prev = reconcile_zone(
+            zone,
+            prev.classes,
+            "measured" if prev.classes else "missing",
+            prev.demand,
+            prev.demand_q,
+            prev.flows,
+            edges_by_id,
+            nodes_by_id,
+        )
+        classes_now = rec.by_class if rec else now.classes
+        classes_prev = rec_prev.by_class if rec_prev else prev.classes
+        demand_now = rec.demand if rec else now.demand
+        demand_prev = rec_prev.demand if rec_prev else prev.demand
+        gen_now = distribute_generation(plan, classes_now)
+        gen_prev = distribute_generation(plan, classes_prev)
+        dem_now = distribute_demand(plan, demand_now) if demand_now is not None else {}
+        dem_prev = distribute_demand(plan, demand_prev) if demand_prev is not None else {}
+        node_q: Quality = "estimated" if rec else gen_q
         for nid, p in gen_now.items():
             n = nodes_by_id[nid]
             cap = n.capacity_mw
             node_states[nid] = NodeState(
-                id=nid, kind=n.kind, quality=gen_q, p_gen=p,
+                id=nid, kind=n.kind, quality=node_q, p_gen=p,
                 u=(p / cap if cap else None), delta_1h=_delta(p, gen_prev.get(nid)),
             )  # fmt: skip
         for nid, d in dem_now.items():
             n = nodes_by_id[nid]
             node_states[nid] = NodeState(
-                id=nid, kind=n.kind, quality=now.demand_q, demand=d,
+                id=nid, kind=n.kind, quality="estimated" if rec else now.demand_q, demand=d,
                 delta_1h=_delta(d, dem_prev.get(nid)),
             )  # fmt: skip
         exchange = 0.0
         any_flow = False
         for edge_id, (f, q) in now.flows.items():
             edge = edges_by_id[edge_id]
+            f_rec = rec.flows.get(edge_id) if rec else None
+            shown = f_rec if f_rec is not None else f
+            loading = abs(shown) / edge.rating_mw if shown is not None and edge.rating_mw else None
             edge_states[edge_id] = EdgeState(
-                id=edge_id, flow=f, quality=q,
-                loading=(abs(f) / edge.rating_mw if f is not None and edge.rating_mw else None),
-            )  # fmt: skip
+                id=edge_id, flow=shown, flow_raw=f, quality=q, loading=loading
+            )
             if f is not None:
                 # flow is signed from->to; leaving this zone counts as export
                 exchange += f if nodes_by_id[edge.from_].zone == zone else -f
@@ -169,7 +192,7 @@ def compute_state(
             id=zone, live=now.live, p_gen=now.p_gen, by_class=now.classes, demand=now.demand,
             demand_quality=now.demand_q, demand_age_min=now.demand_age,
             exchange=exchange if any_flow else None, price=now.price, co2_intensity=now.co2,
-            residual=residual, residual_hat=r_hat,
+            residual=residual, residual_hat=r_hat, reconciled=rec,
         )  # fmt: skip
 
     # grid buses: net injection of attached satellites; through-flow from known corridors only

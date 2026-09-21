@@ -11,6 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
+from emap.analytics.derive import derive_and_store
 from emap.ingest.energinet import EnerginetClient
 from emap.normalize.energinet import (
     corridor_map,
@@ -83,7 +84,12 @@ def build_jobs(client: EnerginetClient, store: Store, topology: Topology) -> lis
         rows = client.fetch("CO2Emis", start="now-PT30M", price_areas=DK_ZONES)
         return write(normalize_co2(rows))
 
+    def residuals() -> int:  # stage ⑤: derived r(t), r̂(t) over the last 6 h (idempotent)
+        with store.cursor() as cur:
+            return derive_and_store(cur, topology, hours=6.0)
+
     return [
+        Job("derived.residual", "residual + residual_hat per DK zone", 300, residuals),
         Job("energinet.prodex", "ElectricityProdex5MinRealtime", 300, prodex),
         Job("energinet.genprodtype", "GenerationProdTypeExchange", 1200, genprodtype),
         Job("energinet.dayahead", "DayAheadPrices", 3600, dayahead),

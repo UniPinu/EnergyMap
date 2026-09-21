@@ -12,6 +12,7 @@ dependencies = [
   "pytz>=2024.1",          # required by duckdb for TIMESTAMPTZ <-> python datetime
   "httpx>=0.27",           # Energinet / ENTSO-E HTTP client (server-side only)
   "apscheduler>=3.10,<4",  # in-process ingestion schedule (one worker, see README)
+  "numpy>=1.26",           # incidence matrix / reconciliation (analytics/balance.py)
 ]
 
 [project.optional-dependencies]

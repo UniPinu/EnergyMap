@@ -34,9 +34,22 @@ class NodeState(BaseModel):
 
 class EdgeState(BaseModel):
     id: str
-    flow: float | None = None  # signed from -> to (MVP.md §3.3)
+    flow: float | None = None  # signed from -> to (MVP.md §3.3), reconciled when possible
+    flow_raw: float | None = None  # as measured
     loading: float | None = None  # |F| / rating
     quality: Quality
+
+
+class ReconciledZone(BaseModel):
+    """n* = argmin ‖W^{1/2}(n − ñ)‖² s.t. the zone identity closes (MVP.md §3.4)."""
+
+    p_gen: float
+    by_class: dict[str, float]
+    demand: float
+    exchange: float
+    flows: dict[str, float]  # corridor edge id -> reconciled signed flow
+    adjustments: dict[str, float]  # measurement key -> x* − x̃
+    weights: dict[str, float]  # trust weights used
 
 
 class ZoneState(BaseModel):
@@ -50,8 +63,9 @@ class ZoneState(BaseModel):
     exchange: float | None = None  # net export X (Σ corridor flows away from the zone)
     price: float | None = None
     co2_intensity: float | None = None
-    residual: float | None = None  # r = Σgen - Σload - X   (L = 0 until Phase 3)
-    residual_hat: float | None = None  # r / Σload
+    residual: float | None = None  # r = Σgen - Σload - X on raw measurements (L = 0)
+    residual_hat: float | None = None  # r / Σload — the data-quality gauge
+    reconciled: ReconciledZone | None = None
 
 
 class ClusterState(BaseModel):

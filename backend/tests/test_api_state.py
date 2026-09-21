@@ -40,7 +40,9 @@ def test_state_endpoint(client: TestClient, topo):
     horns = next(n for n in topo.nodes if n.name.startswith("Horns Rev"))
     ns = body["nodes"][horns.id]
     assert ns["kind"] == "source" and ns["p_gen"] is not None and 0 <= ns["u"] <= 1
-    assert body["clusters"]["0"]["DK1"]["net_injection"] == pytest.approx(900.0)
+    rec = z["reconciled"]
+    assert rec["p_gen"] - rec["demand"] - rec["exchange"] == pytest.approx(0.0, abs=1e-6)
+    assert body["clusters"]["0"]["DK1"]["net_injection"] == pytest.approx(rec["exchange"])
     assert client.get("/api/state", params={"t": "2026-09-21T17:00:00"}).status_code == 422  # naive
 
 
