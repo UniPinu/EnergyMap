@@ -8,6 +8,7 @@ nodal balance identity `A·F = n` — with the reconciliation residual shown, ne
 Authoritative documents (read in this order):
 [docs/MVP.md](docs/MVP.md) (what + the math) · [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) (architecture + phases) ·
 [docs/CONTEXT.md](docs/CONTEXT.md) (how each library/API is used).
+How the built system actually works, end to end: [docs/APP_CONTEXT.md](docs/APP_CONTEXT.md).
 
 ## Status
 
